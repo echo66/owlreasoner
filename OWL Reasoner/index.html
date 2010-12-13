@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>OWL EL Reasoner</title>
+        <script src="owl.js" type="text/javascript"></script>
+        <script src="util.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="style.css" type="text/css" />
+        <script type="text/javascript">
+           // Holds reference to the reasoner after some ontology is classified.
+           var reasoner = undefined;
+           
+           /**
+            * Shows the given error message in the browser.
+            * 
+            * @param msg Error message to show in the browser.
+            */
+           function handleError(msg)
+           {
+              alert('ERROR: ' + msg);
+           }
+           
+           /**
+            * Toggles the visibility of the ontology text box on the page. 
+            */
+           function toggleOntologyTextVisibility()
+           {
+              var ontologyText = document.getElementById('ontologyText');
+              
+              if (ontologyText.style.display == 'block')
+              {
+                 ontologyText.style.display = 'none';
+              }
+              else
+              {
+                 ontologyText.style.display = 'block';
+              }
+           }
+           
+           /**
+            * Parses the ontology from the given OWL/XML and builds a reasoner object for it.
+            */ 
+           function classifyBtnClicked()
+           {
+              try 
+              {
+                 var owlXml = document.getElementById('ontologyText').value;
+                 
+                 var stopwatch = new Stopwatch();
+                 
+                 stopwatch.start();
+                 var ontology = owl.xml.parse(owlXml);
+                 var parsingTime = stopwatch.stop();
+                 
+                 stopwatch.start();
+                 reasoner = new owl.Reasoner(ontology);
+                 var classificationTime = stopwatch.stop(); 
+                 
+                 // Hide the Classify button and the ontology text.
+                 document.getElementById('sampleOntologies').style.display = 'none';
+                 document.getElementById('classifyBtn').style.display = 'none';
+                 document.getElementById('ontologyText').style.display = 'none';
+                 
+                 // Display the classification information.
+                 document.getElementById('parsingTime').innerHTML = parsingTime;
+                 document.getElementById('classificationTime').innerHTML = classificationTime;
+                 document.getElementById('classCount').innerHTML = ontology.getClassCount();
+                 document.getElementById('opropCount').innerHTML = 
+                    ontology.getObjectPropertyCount();
+                 document.getElementById('classifyOutcome').style.display = 'block';
+                 
+                 // Display the query box.
+                 document.getElementById('queryBox').style.display = 'block';
+              }
+              catch (ex)
+              {
+                 handleError(ex);
+              }
+           }
+           
+           /**
+            * Processes the query from the given string and outputs the result.
+            */
+           function queryBtnClicked()
+           {
+              try 
+              {
+                 if (!reasoner)
+                 {
+                    throw 'The reasoner has not been initialized yet!';
+                 }
+                 
+                 var queryTxt = document.getElementById('queryText').value;
+                 
+                 var stopwatch = new Stopwatch();
+                 stopwatch.start();
+                 var query = owl.queryParser.parse(queryTxt);
+                 var result = reasoner.answerQuery(query);
+                 var time = stopwatch.stop();
+                 
+                 var queryResults = document.getElementById('queryResults');
+                 queryResults.innerHTML += 
+                    "<br />" + '"' + queryTxt + '": ' +  result + ' (answered in ' + time + ')';
+              }
+              catch (ex)
+              {
+                 handleError(ex);
+              }
+           }
+           
+           /**
+            * Loads ontology stored at the given path into the ontology text box.
+            * 
+            * @param url URL of the file containing an ontology to load.
+            */
+           function loadOntologyFile(url)
+           {
+              try
+              {
+                 var file = new TextFile(url);
+                 document.getElementById('ontologyText').value = file.getText();
+              }
+              catch (ex)
+              {
+                 handleError(ex);
+              }
+           }
+        </script>
+    </head>
+    <body>
+      <div id="page">
+         <h1>OWL EL Reasoner</h1>
+         <div id="ontologyBox">
+            <div id="classifyOutcome">
+               Time taken to parse the ontology: <span id="parsingTime">[not processed yet]</span><br />
+               Time taken to classify the ontology: <span id="classificationTime">[not processed yet]</span><br />
+               Number of classes in the ontology: <span id="classCount">[not processed yet]</span><br />
+               Number of object properties in the ontology: <span id="opropCount">[not processed yet]</span>
+               <br /><br />
+               <a href="ontologyText.html" onclick="toggleOntologyTextVisibility(); return false;">[Show/hide ontology text]</a>
+            </div>
+            <div id="sampleOntologies">
+               Load test ontologies: 
+               <a href="tests/subsumption/test1.txt" onclick="loadOntologyFile('tests/subsumption/test1.txt'); return false;">Test #1</a> |
+	            <a href="tests/subsumption/test2.txt" onclick="loadOntologyFile('tests/subsumption/test2.txt'); return false;">Test #2</a> |
+	            <a href="tests/subsumption/test3.txt" onclick="loadOntologyFile('tests/subsumption/test3.txt'); return false;">Test #3</a>
+            </div>
+	         <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
+            <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
+         </div>
+         <div id="queryBox">
+            Query:
+            <input type="text" id="queryText" placeholder="Please input your query here." />
+            <input type="button" id="queryBtn" value="Execute" onclick="queryBtnClicked();"/>
+            <br/><br />Results:
+            <div id="queryResults"></div>
+         </div>
+      </div>
+    </body>
+</html>

@@ -1,0 +1,9 @@
+#page { width: 780px; margin: auto }
+#sampleOntologies { display: block; margin-bottom: 10px }
+#ontologyBox { width: 780px }
+#ontologyText { width: 780px; margin-bottom: 10px }
+#classifyBtn { width: 780px; margin: 0 }
+#classifyOutcome { display: none; margin-bottom: 10px }
+#queryBox { display: none }
+#queryText { width: 600px }
+#queryBtn { width: 100px }
