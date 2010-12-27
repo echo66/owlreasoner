@@ -590,7 +590,7 @@ owl.Reasoner = function(ontology)
     */
    function doSubsumption(srcOntology)
    {
-      var ontology = srcOntology.normalize();
+      var ontology = normalizeOntology(srcOntology);
    
       /**
        * Stores labels for each node.
@@ -957,6 +957,443 @@ owl.Reasoner = function(ontology)
       };
       
       /**
+       * Normalizes the given ontology.
+       * 
+       * @returns New ontology which is a normalized version of the given one.
+       */
+      function normalizeOntology(ontology)
+      {  
+         var entities = ontology.entities;
+         var resultOntology = new owl.Ontology();
+         
+         for (var entityType in entities)
+         {
+            var entitiesOfType = entities[entityType];
+            
+            for (var entityIRI in entities[entityType])
+            {
+               resultOntology.entities[entityType][entityIRI] = entitiesOfType[entityIRI];
+            }
+         }
+            
+         /**
+          * Checks if the given axiom is in the form P1 o P2 o ... o Pn <=  P, where Pi and P are 
+          * object property expressions. If this is the case, transforms it into the set of 
+          * equivalent axioms
+          *  
+          *  P1 o P2 <= U1
+          *  U1 o P3 <= U2
+          *  ...
+          *  Un-2 o Pn <= P,
+          * 
+          * where Ui are the new object properties introduced.
+          * 
+          * @param axiom Axiom to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF1(axiom)
+         {
+            if (axiom.type != AX_OPROP_SUB || 
+               axiom.arg1.type != OPE_CHAIN || 
+               axiom.arg1.args.length <= 2)
+            {
+               return undefined;
+            }
+          
+            var srcChain = axiom.arg1.args; 
+            var prevOprop = resultOntology.createEntity(ET_OPROP); 
+            
+            var normalized = [
+            {
+               type: AX_OPROP_SUB,
+               arg1:
+               {
+                  type: OPE_CHAIN,
+                  args: [srcChain[0], srcChain[1]]
+               },
+               arg2: prevOprop 
+            }];
+            
+            var lastOpropIndex = srcChain.length - 1;
+            
+            for (var opropIndex = 2; opropIndex < lastOpropIndex; opropIndex++)
+            {
+               var newOprop = resultOntology.createEntity(ET_OPROP);
+               
+               normalized.push(
+               {
+                  type: AX_OPROP_SUB,
+                  arg1:
+                  {
+                     type: OPE_CHAIN,
+                     args: [prevOprop, srcChain[opropIndex]]
+                  },
+                  arg2: newOprop
+               });
+               
+               prevOprop = newOprop;
+            }
+            
+            normalized.push(
+            {
+                  type: AX_OPROP_SUB,
+                  arg1:
+                  {
+                     type: OPE_CHAIN,
+                     args: [prevOprop, srcChain[lastOpropIndex]]
+                  },
+                  arg2: axiom.arg2
+   	      });
+            
+            return normalized;
+         }
+         
+         /**
+          * Checks if the given axiom is in the form A1 = A2 = ... = An, where Ai are class 
+          * expressions. If this is the case, transforms it into the set of equivalent axioms
+          *  
+          *  A1 <= A2 A1 <= A3 ... A1 <= An
+          *  A2 <= A1 A2 <= A3 ... A2 <= An
+          *  ...
+          *  An <= A1 An <= A2 ... An <= An-1
+          * .
+          * 
+          * @param axiom Axiom to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF2(axiom)
+         {
+            if (axiom.type != AX_CLASS_EQ)
+            {
+               return undefined;
+            }
+            
+            var normalized = [];
+            var classExprs = axiom.args;
+            var classExprCount = classExprs.length;
+            
+            for (var classExpr1Index = 0; classExpr1Index < classExprCount; classExpr1Index++)
+            {
+               for (var classExpr2Index = 0; classExpr2Index < classExprCount; classExpr2Index++)
+               {
+                  if (classExpr1Index == classExpr2Index)
+                  {
+                     continue;
+                  }
+                  
+                  normalized.push(
+                  {
+                     type: AX_CLASS_SUB,
+                     args: [classExprs[classExpr1Index], classExprs[classExpr2Index]]
+                  });
+               }
+            }
+            
+            return normalized;
+         }
+         
+         /**
+          * Checks if the given axiom is in the form A <= A1 n A2 n ... An., where A and Ai are class
+          * expressions. If this is the case, transforms it into the set of equivalent axioms
+          *  
+          *  A <= A1
+          *  A <= A2
+          *  ...
+          *  A <= An
+          * .
+          * 
+          * @param axiom Axiom to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF3(axiom)
+         {
+            if (axiom.type != AX_CLASS_SUB || axiom.args[1].type != CE_INTERSECT)
+            {
+               return undefined;
+            }
+          
+   	      var normalized = [];
+            var firstArg = axiom.args[0];
+            var secondArg = axiom.args[1];
+            
+            var args = secondArg.args;
+            var argCount = args.length;
+            
+            for (var exprIndex = 0; exprIndex < argCount; exprIndex++)
+   	      {
+   	         normalized.push(
+   	         {
+   	            type: AX_CLASS_SUB,
+   	            args: [firstArg, args[exprIndex]]
+   	         });
+   	      }
+            
+            return normalized;
+         }
+         
+         /**
+          * Checks if the given axiom is in the form C <= D, where C and D are complex class 
+          * expressions. If this is the case, transforms the axiom into two equivalent axioms
+          *  
+          *  C <= A
+          *  A <= D
+          * 
+          * where A is a new atomic class introduced.
+          * 
+          * @param axiom Axiom to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF4(axiom)
+         {
+            if (axiom.type != AX_CLASS_SUB || 
+               axiom.args[0].type == ET_CLASS || 
+               axiom.args[1].type == ET_CLASS)
+            {
+               return undefined;
+            }
+          
+   	      var firstArg = axiom.args[0];
+            var secondArg = axiom.args[1];
+          
+            var normalized = [];  
+   	      var newClassExpr = resultOntology.createEntity(ET_CLASS);
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [firstArg, newClassExpr]
+   	      });
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [newClassExpr, secondArg]
+   	      });
+            
+            return normalized;
+         }
+         
+         /**
+          * Checks if the given axiom is in the form C1 n C2 n ... Cn <= C, where some Ci are complex 
+          * class expressions. If this is the case converts the axiom into the set of equivalent axioms
+          * 
+          * Ai <= Ci
+          * ..
+          * C1 n ... n Ai n ... Cn <= C
+          * 
+          * where Ai are new atomic classes introduced to substitute complex class expressions Ci 
+          * in the original axiom.
+          * 
+          * @param axiom Axiom to try to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF5(axiom)
+         {
+   	      if (axiom.type != AX_CLASS_SUB || axiom.args[0].type != CE_INTERSECT)
+            {
+               return undefined;
+            }
+            
+            var normalized = [];
+   	      var firstArg = axiom.args[0];
+   	      var secondArg = axiom.args[1];
+            
+            var ruleApplied = false;
+            
+            var newIntersectExpr =
+   	      {
+   	         type: CE_INTERSECT,
+   	         args: []
+   	      };
+            
+            var args = firstArg.args;
+            var argCount = args.length;
+            
+            for (var argIndex = 0; argIndex < argCount; argIndex++)
+   	      {
+               var classExpr = args[argIndex];
+               
+   	         if (classExpr.type != ET_CLASS)
+   	         {
+   	            ruleApplied = true;
+   	            var newClassExpr = resultOntology.createEntity(ET_CLASS);
+                        
+   	            normalized.push(
+   	            {
+   	               type: AX_CLASS_SUB,
+   	               args: [newClassExpr, classExpr]
+   	            });
+                        
+   	            newIntersectExpr.args.push(newClassExpr);
+   	         }
+   	         else
+   	         {
+   	            newIntersectExpr.args.push(classExpr);
+   	         }
+   	      }
+                  
+   	      if (ruleApplied)
+   	      {
+   	         normalized.push(
+   	         {
+   	            type: AX_CLASS_SUB,
+   	            args: [newIntersectExpr, secondArg]
+   	         });
+               
+               return normalized;
+   	      }
+            else
+            {
+               return undefined;
+            }
+         }
+         
+         /**
+          * Checks if the given axiom is in the form E P.A <= B, where A is a complex class 
+          * expression. If this is the case converts the axiom into two equivalent axioms
+          * A1 <= A and E P.A1 <= B, where A1 is a new atomic class.
+          * 
+          * @param axiom Axiom to try to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF6(axiom)
+         {         
+            if (axiom.type != AX_CLASS_SUB || 
+               axiom.args[0].type != CE_OBJ_VALUES_FROM || 
+               axiom.args[0].classExpr.type == ET_CLASS)
+            {
+               return undefined;
+            }
+          
+            var normalized = [];
+            var firstArg = axiom.args[0];
+            var secondArg = axiom.args[1];
+            
+            var newClassExpr = resultOntology.createEntity(ET_CLASS);
+               
+            var newObjSomeValuesExpr = 
+   	      {
+   	         type: CE_OBJ_VALUES_FROM,
+   	         opropExpr: firstArg.opropExpr,
+   	         classExpr: newClassExpr
+   	      }
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [firstArg.classExpr, newClassExpr]
+   	      });
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [newObjSomeValuesExpr, secondArg]
+   	      });
+            
+            return normalized;
+         }
+         
+         /**
+          * Checks if the given axiom is in the form A <= E P.B, where B is a complex class 
+          * expression. If this is the case converts the axiom into two equivalent axioms
+          * B1 <= B and A <= E P.B1, where B1 is a new atomic class.
+          * 
+          * @param axiom Axiom to try to apply the rule to.
+          * @returns Set of axioms which are result of applying the rule to the given axiom or
+          * undefined if the rule could not be applied.
+          */
+         function applyRuleNF7(axiom)
+         {                  
+            if (axiom.type != AX_CLASS_SUB ||
+               axiom.args[1].type != CE_OBJ_VALUES_FROM || 
+               axiom.args[1].classExpr.type == ET_CLASS)
+            {
+               return undefined;
+            }
+            
+            var normalized = [];
+            var firstArg = axiom.args[0];
+   	      var secondArg = axiom.args[1];
+            
+            var newClassExpr = resultOntology.createEntity(ET_CLASS);
+               
+   	      var newObjSomeValuesExpr = 
+   	      {
+   	         type: CE_OBJ_VALUES_FROM,
+   	         opropExpr: secondArg.opropExpr,
+   	         classExpr: newClassExpr
+   	      }
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [secondArg.classExpr, newClassExpr]
+   	      });
+               
+   	      normalized.push(
+   	      {
+   	         type: AX_CLASS_SUB,
+   	         args: [firstArg, newObjSomeValuesExpr]
+   	      });
+            
+            return normalized;
+         }
+         
+         var queue = new owl.Queue();
+         var axioms = ontology.axioms;
+         var axiomCount = axioms.length;
+         
+         for (var axiomIndex = 0; axiomIndex < axiomCount; axiomIndex++) 
+         {
+            queue.enqueue(axioms[axiomIndex]);
+         }
+         
+         var rules = [applyRuleNF1, applyRuleNF2, applyRuleNF3, applyRuleNF4, applyRuleNF5, 
+            applyRuleNF6, applyRuleNF7];
+         var ruleCount = rules.length;
+         
+         while (!queue.isEmpty()) 
+         {
+            var axiom = queue.dequeue();
+            var ruleIndex = 1;
+            
+            // Trying to find a rule to apply to the axiom.
+            for (ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++)
+            {
+               var resultAxioms = rules[ruleIndex](axiom);
+               
+               if (resultAxioms)
+               {
+                  var resultAxiomCount = resultAxioms.length; 
+                  
+                  // If applying the rule succeeded.
+                  for (var axiomIndex = 0; axiomIndex < resultAxiomCount; axiomIndex++)
+                  {
+                     queue.enqueue(resultAxioms[axiomIndex]);
+                  }
+                  
+                  break;
+               }
+            }
+            
+            if (ruleIndex == ruleCount)
+            {
+               // If nothing can be done to the axiom, it is returned unchanged by applyRule() 
+               // function.
+               resultOntology.axioms.push(axiom);            
+            }
+         }
+         
+         return resultOntology;
+      };
+      
+      /**
        * Checks if the given axiom is in the form
        * 
        * A1 n A2 n ... n A n ... n An <= C, n >= 0
@@ -1199,7 +1636,7 @@ owl.Reasoner = function(ontology)
          // Create a node for Thing (superclass).
          initialiseNode(THING);
          
-         var classes = ontology.entities[ET_CLASS];
+         var classes = ontology.getClasses();
          
          for (var classIRI in classes)
          {
@@ -1252,7 +1689,7 @@ owl.Reasoner = function(ontology)
     */
    this.isSubclass = function (class1, class2)
    {
-      var classes = ontology.entities[ET_CLASS];
+      var classes = ontology.getClasses();
       
       if (!classes[class1])
       {
@@ -1292,14 +1729,14 @@ owl.Reasoner = function(ontology)
 }; 
 
 /**
- * An object which can be used to parse user queries against the ontology.
+ * An object which can be used to parse user SPARQL queries against the ontology.
  */
-owl.queryParser = 
+owl.sparql = 
 {
    /**
-    * Parses the given string into the query. 
+    * Parses the given SPARQL string into the query. 
     * 
-    * @param queryTxt String to parse into the query.
+    * @param queryTxt SPARQL string to parse into the query.
     * @returns An object representing the query parsed.
     */
    parse: function (queryTxt)
@@ -1452,6 +1889,16 @@ owl.Ontology  = function()
    };
    
    /**
+    * Returns an 'associative array' of all classes in the ontology.
+    * 
+    * @returns 'Associative array' of all classes in the ontology.
+    */
+   this.getClasses = function ()
+   {
+      return entities[ET_CLASS];
+   };
+   
+   /**
     * Returns number of object properties in the ontology.
     * 
     * @returns Number of object properties in the ontology.
@@ -1462,440 +1909,14 @@ owl.Ontology  = function()
    };
    
    /**
-    * Normalizes the ontology.
+    * Returns an 'associative array' of all object properties in the ontology.
     * 
-    * @returns New ontology which is a normalized version of this one.
+    * @returns 'Associative array' of all object properties in the ontology.
     */
-   this.normalize = function()
-   {  
-      var resultOntology = new owl.Ontology();
-      
-      for (var entityType in this.entities)
-      {
-         var entitiesOfType = entities[entityType];
-         
-         for (var entityIRI in this.entities[entityType])
-         {
-            resultOntology.entities[entityType][entityIRI] = entitiesOfType[entityIRI];
-         }
-      }
-         
-      /**
-       * Checks if the given axiom is in the form P1 o P2 o ... o Pn <=  P, where Pi and P are 
-       * object property expressions. If this is the case, transforms it into the set of 
-       * equivalent axioms
-       *  
-       *  P1 o P2 <= U1
-       *  U1 o P3 <= U2
-       *  ...
-       *  Un-2 o Pn <= P,
-       * 
-       * where Ui are the new object properties introduced.
-       * 
-       * @param axiom Axiom to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF1(axiom)
-      {
-         if (axiom.type != AX_OPROP_SUB || 
-            axiom.arg1.type != OPE_CHAIN || 
-            axiom.arg1.args.length <= 2)
-         {
-            return undefined;
-         }
-       
-         var srcChain = axiom.arg1.args; 
-         var prevOprop = resultOntology.createEntity(ET_OPROP); 
-         
-         var normalized = [
-         {
-            type: AX_OPROP_SUB,
-            arg1:
-            {
-               type: OPE_CHAIN,
-               args: [srcChain[0], srcChain[1]]
-            },
-            arg2: prevOprop 
-         }];
-         
-         var lastOpropIndex = srcChain.length - 1;
-         
-         for (var opropIndex = 2; opropIndex < lastOpropIndex; opropIndex++)
-         {
-            var newOprop = resultOntology.createEntity(ET_OPROP);
-            
-            normalized.push(
-            {
-               type: AX_OPROP_SUB,
-               arg1:
-               {
-                  type: OPE_CHAIN,
-                  args: [prevOprop, srcChain[opropIndex]]
-               },
-               arg2: newOprop
-            });
-            
-            prevOprop = newOprop;
-         }
-         
-         normalized.push(
-         {
-               type: AX_OPROP_SUB,
-               arg1:
-               {
-                  type: OPE_CHAIN,
-                  args: [prevOprop, srcChain[lastOpropIndex]]
-               },
-               arg2: axiom.arg2
-	      });
-         
-         return normalized;
-      }
-      
-      /**
-       * Checks if the given axiom is in the form A1 = A2 = ... = An, where Ai are class 
-       * expressions. If this is the case, transforms it into the set of equivalent axioms
-       *  
-       *  A1 <= A2 A1 <= A3 ... A1 <= An
-       *  A2 <= A1 A2 <= A3 ... A2 <= An
-       *  ...
-       *  An <= A1 An <= A2 ... An <= An-1
-       * .
-       * 
-       * @param axiom Axiom to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF2(axiom)
-      {
-         if (axiom.type != AX_CLASS_EQ)
-         {
-            return undefined;
-         }
-         
-         var normalized = [];
-         var classExprs = axiom.args;
-         var classExprCount = classExprs.length;
-         
-         for (var classExpr1Index = 0; classExpr1Index < classExprCount; classExpr1Index++)
-         {
-            for (var classExpr2Index = 0; classExpr2Index < classExprCount; classExpr2Index++)
-            {
-               if (classExpr1Index == classExpr2Index)
-               {
-                  continue;
-               }
-               
-               normalized.push(
-               {
-                  type: AX_CLASS_SUB,
-                  args: [classExprs[classExpr1Index], classExprs[classExpr2Index]]
-               });
-            }
-         }
-         
-         return normalized;
-      }
-      
-      /**
-       * Checks if the given axiom is in the form A <= A1 n A2 n ... An., where A and Ai are class
-       * expressions. If this is the case, transforms it into the set of equivalent axioms
-       *  
-       *  A <= A1
-       *  A <= A2
-       *  ...
-       *  A <= An
-       * .
-       * 
-       * @param axiom Axiom to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF3(axiom)
-      {
-         if (axiom.type != AX_CLASS_SUB || axiom.args[1].type != CE_INTERSECT)
-         {
-            return undefined;
-         }
-       
-	      var normalized = [];
-         var firstArg = axiom.args[0];
-         var secondArg = axiom.args[1];
-         
-         var args = secondArg.args;
-         var argCount = args.length;
-         
-         for (var exprIndex = 0; exprIndex < argCount; exprIndex++)
-	      {
-	         normalized.push(
-	         {
-	            type: AX_CLASS_SUB,
-	            args: [firstArg, args[exprIndex]]
-	         });
-	      }
-         
-         return normalized;
-      }
-      
-      /**
-       * Checks if the given axiom is in the form C <= D, where C and D are complex class 
-       * expressions. If this is the case, transforms the axiom into two equivalent axioms
-       *  
-       *  C <= A
-       *  A <= D
-       * 
-       * where A is a new atomic class introduced.
-       * 
-       * @param axiom Axiom to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF4(axiom)
-      {
-         if (axiom.type != AX_CLASS_SUB || 
-            axiom.args[0].type == ET_CLASS || 
-            axiom.args[1].type == ET_CLASS)
-         {
-            return undefined;
-         }
-       
-	      var firstArg = axiom.args[0];
-         var secondArg = axiom.args[1];
-       
-         var normalized = [];  
-	      var newClassExpr = resultOntology.createEntity(ET_CLASS);
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [firstArg, newClassExpr]
-	      });
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [newClassExpr, secondArg]
-	      });
-         
-         return normalized;
-      }
-      
-      /**
-       * Checks if the given axiom is in the form C1 n C2 n ... Cn <= C, where some Ci are complex 
-       * class expressions. If this is the case converts the axiom into the set of equivalent axioms
-       * 
-       * Ai <= Ci
-       * ..
-       * C1 n ... n Ai n ... Cn <= C
-       * 
-       * where Ai are new atomic classes introduced to substitute complex class expressions Ci 
-       * in the original axiom.
-       * 
-       * @param axiom Axiom to try to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF5(axiom)
-      {
-	      if (axiom.type != AX_CLASS_SUB || axiom.args[0].type != CE_INTERSECT)
-         {
-            return undefined;
-         }
-         
-         var normalized = [];
-	      var firstArg = axiom.args[0];
-	      var secondArg = axiom.args[1];
-         
-         var ruleApplied = false;
-         
-         var newIntersectExpr =
-	      {
-	         type: CE_INTERSECT,
-	         args: []
-	      };
-         
-         var args = firstArg.args;
-         var argCount = args.length;
-         
-         for (var argIndex = 0; argIndex < argCount; argIndex++)
-	      {
-            var classExpr = args[argIndex];
-            
-	         if (classExpr.type != ET_CLASS)
-	         {
-	            ruleApplied = true;
-	            var newClassExpr = resultOntology.createEntity(ET_CLASS);
-                     
-	            normalized.push(
-	            {
-	               type: AX_CLASS_SUB,
-	               args: [newClassExpr, classExpr]
-	            });
-                     
-	            newIntersectExpr.args.push(newClassExpr);
-	         }
-	         else
-	         {
-	            newIntersectExpr.args.push(classExpr);
-	         }
-	      }
-               
-	      if (ruleApplied)
-	      {
-	         normalized.push(
-	         {
-	            type: AX_CLASS_SUB,
-	            args: [newIntersectExpr, secondArg]
-	         });
-            
-            return normalized;
-	      }
-         else
-         {
-            return undefined;
-         }
-      }
-      
-      /**
-       * Checks if the given axiom is in the form E P.A <= B, where A is a complex class 
-       * expression. If this is the case converts the axiom into two equivalent axioms
-       * A1 <= A and E P.A1 <= B, where A1 is a new atomic class.
-       * 
-       * @param axiom Axiom to try to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF6(axiom)
-      {         
-         if (axiom.type != AX_CLASS_SUB || 
-            axiom.args[0].type != CE_OBJ_VALUES_FROM || 
-            axiom.args[0].classExpr.type == ET_CLASS)
-         {
-            return undefined;
-         }
-       
-         var normalized = [];
-         var firstArg = axiom.args[0];
-         var secondArg = axiom.args[1];
-         
-         var newClassExpr = resultOntology.createEntity(ET_CLASS);
-            
-         var newObjSomeValuesExpr = 
-	      {
-	         type: CE_OBJ_VALUES_FROM,
-	         opropExpr: firstArg.opropExpr,
-	         classExpr: newClassExpr
-	      }
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [firstArg.classExpr, newClassExpr]
-	      });
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [newObjSomeValuesExpr, secondArg]
-	      });
-         
-         return normalized;
-      }
-      
-      /**
-       * Checks if the given axiom is in the form A <= E P.B, where B is a complex class 
-       * expression. If this is the case converts the axiom into two equivalent axioms
-       * B1 <= B and A <= E P.B1, where B1 is a new atomic class.
-       * 
-       * @param axiom Axiom to try to apply the rule to.
-       * @returns Set of axioms which are result of applying the rule to the given axiom or
-       * undefined if the rule could not be applied.
-       */
-      function applyRuleNF7(axiom)
-      {                  
-         if (axiom.type != AX_CLASS_SUB ||
-            axiom.args[1].type != CE_OBJ_VALUES_FROM || 
-            axiom.args[1].classExpr.type == ET_CLASS)
-         {
-            return undefined;
-         }
-         
-         var normalized = [];
-         var firstArg = axiom.args[0];
-	      var secondArg = axiom.args[1];
-         
-         var newClassExpr = resultOntology.createEntity(ET_CLASS);
-            
-	      var newObjSomeValuesExpr = 
-	      {
-	         type: CE_OBJ_VALUES_FROM,
-	         opropExpr: secondArg.opropExpr,
-	         classExpr: newClassExpr
-	      }
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [secondArg.classExpr, newClassExpr]
-	      });
-            
-	      normalized.push(
-	      {
-	         type: AX_CLASS_SUB,
-	         args: [firstArg, newObjSomeValuesExpr]
-	      });
-         
-         return normalized;
-      }
-      
-      var queue = new owl.Queue();
-      var axioms = this.axioms;
-      var axiomCount = this.axioms.length;
-      
-      for (var axiomIndex = 0; axiomIndex < axiomCount; axiomIndex++) 
-      {
-         queue.enqueue(axioms[axiomIndex]);
-      }
-      
-      var rules = [applyRuleNF1, applyRuleNF2, applyRuleNF3, applyRuleNF4, applyRuleNF5, 
-         applyRuleNF6, applyRuleNF7];
-      var ruleCount = rules.length;
-      
-      while (!queue.isEmpty()) 
-      {
-         var axiom = queue.dequeue();
-         var ruleIndex = 1;
-         
-         // Trying to find a rule to apply to the axiom.
-         for (ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++)
-         {
-            var resultAxioms = rules[ruleIndex](axiom);
-            
-            if (resultAxioms)
-            {
-               var resultAxiomCount = resultAxioms.length; 
-               
-               // If applying the rule succeeded.
-               for (var axiomIndex = 0; axiomIndex < resultAxiomCount; axiomIndex++)
-               {
-                  queue.enqueue(resultAxioms[axiomIndex]);
-               }
-               
-               break;
-            }
-         }
-         
-         if (ruleIndex == ruleCount)
-         {
-            // If nothing can be done to the axiom, it is returned unchanged by applyRule() 
-            // function.
-            resultOntology.axioms.push(axiom);            
-         }
-      }
-      
-      return resultOntology;
-   }
+   this.getObjectProperties = function ()
+   {
+      return entities[ET_CLASS];
+   };
 }
 
 /**

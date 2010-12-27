@@ -38,6 +38,23 @@
               }
            }
            
+           /***
+            * Fills the given Select box with names of classes from the given 'associative array'.
+            * 
+            * @param selectBox Select box to fill.
+            * @param classes 'Associative array' with classes to add to the select box.
+            */
+           function fillSelectWithClassNames(selectBox, classes)
+           {
+              for (var name in classes)
+              {
+                 var option = document.createElement('option');
+                 option.text = name;
+                 option.value = name;
+                 selectBox.add(option, null);
+              }
+           }
+           
            /**
             * Parses the ontology from the given OWL/XML and builds a reasoner object for it.
             */ 
@@ -71,6 +88,9 @@
                  document.getElementById('classifyOutcome').style.display = 'block';
                  
                  // Display the query box.
+                 var classes = ontology.getClasses();
+                 fillSelectWithClassNames(document.getElementById('subsumee'), classes);
+                 fillSelectWithClassNames(document.getElementById('subsumer'), classes)
                  document.getElementById('queryBox').style.display = 'block';
               }
               catch (ex)
@@ -95,13 +115,43 @@
                  
                  var stopwatch = new Stopwatch();
                  stopwatch.start();
-                 var query = owl.queryParser.parse(queryTxt);
+                 var query = owl.sparql.parse(queryTxt);
                  var result = reasoner.answerQuery(query);
                  var time = stopwatch.stop();
                  
                  var queryResults = document.getElementById('queryResults');
                  queryResults.innerHTML += 
                     "<br />" + '"' + queryTxt + '": ' +  result + ' (answered in ' + time + ')';
+              }
+              catch (ex)
+              {
+                 handleError(ex);
+              }
+           }
+           
+           /**
+            * Checks if the given subsumption holds.
+            */
+           function subsumptionBtnClicked()
+           {
+              try
+              {
+                 if (!reasoner)
+                 {
+                    throw 'The reasoner has not been initialized yet!';
+                 }
+                 
+                 var stopwatch = new Stopwatch();
+                 stopwatch.start();
+                 var subsumeeBox = document.getElementById('subsumee');
+                 var subsumerBox = document.getElementById('subsumer');
+                 var result = reasoner.isSubclass(
+                    subsumeeBox.options[subsumeeBox.selectedIndex].value, 
+                    subsumerBox.options[subsumerBox.selectedIndex].value)
+                 var time = stopwatch.stop();
+                 
+                 var subsumptionResult = document.getElementById('subsumptionResult');
+                 subsumptionResult.innerHTML = result + ' (answered in ' + time + ')';
               }
               catch (ex)
               {
@@ -141,17 +191,25 @@
                <a href="ontologyText.html" onclick="toggleOntologyTextVisibility(); return false;">[Show/hide ontology text]</a>
             </div>
             <div id="sampleOntologies">
-               Load test ontologies: 
-               <a href="tests/subsumption/test1.txt" onclick="loadOntologyFile('tests/subsumption/test1.txt'); return false;">Test #1</a> |
-	            <a href="tests/subsumption/test2.txt" onclick="loadOntologyFile('tests/subsumption/test2.txt'); return false;">Test #2</a> |
-	            <a href="tests/subsumption/test3.txt" onclick="loadOntologyFile('tests/subsumption/test3.txt'); return false;">Test #3</a>
+               Test ontologies: 
+               <a href="tests/subsumption/test1.owl" onclick="loadOntologyFile('tests/subsumption/test1.owl'); return false;">Test #1</a> |
+	            <a href="tests/subsumption/test2.owl" onclick="loadOntologyFile('tests/subsumption/test2.owl'); return false;">Test #2</a> |
+	            <a href="tests/subsumption/test3.owl" onclick="loadOntologyFile('tests/subsumption/test3.owl'); return false;">Test #3</a> |
+               <a href="tests/subsumption/not-galen.owl" onclick="loadOntologyFile('tests/subsumption/not-galen.owl'); return false;">NOT-GALEN</a>
             </div>
 	         <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
             <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
          </div>
          <div id="queryBox">
-            Query:
-            <input type="text" id="queryText" placeholder="Please input your query here." />
+            Class subsumption:
+            <select id="subsumee">
+            </select>
+            is
+            <select id="subsumer">
+            </select>
+            <input type="button" id="subsumptionBtn" value="Check" onclick="subsumptionBtnClicked();" /><span id="subsumptionResult"></span><br /><br />
+            SPARQL query:
+            <textarea id="queryText" cols="40" rows="5" placeholder="Please input your SPARQL query here."></textarea>
             <input type="button" id="queryBtn" value="Execute" onclick="queryBtnClicked();"/>
             <br/><br />Results:
             <div id="queryResults"></div>
