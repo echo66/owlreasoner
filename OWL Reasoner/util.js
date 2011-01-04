@@ -25,7 +25,7 @@ var Stopwatch = function ()
    /**
     * Starts measuring the time.
     */
-   this.start = function ()
+   this.start = function()
    {
       startTime = new Date().getTime();
       elapsedMs = undefined;
@@ -36,7 +36,7 @@ var Stopwatch = function ()
     * 
     * @returns Textual representation of the measured period of time.
     */
-   this.stop = function ()
+   this.stop = function()
    {
       elapsedMs = new Date().getTime() - startTime;
       return getElapsedTimeAsText();
@@ -76,8 +76,16 @@ TextFile.prototype =
       }
       
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', this.url, false);
-      xhr.send(null);
-      return xhr.responseText;
+      
+      try 
+      {
+         xhr.open('GET', this.url, false);
+         xhr.send(null);
+         return xhr.responseText;
+      }
+      catch (ex)
+      {
+         throw ex;
+      }
    } 
 };

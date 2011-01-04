@@ -1,10 +1,11 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <title>OWL EL Reasoner</title>
         <script src="owl.js" type="text/javascript"></script>
+        <script src="query.js" type="text/javascript"></script>
         <script src="util.js" type="text/javascript"></script>
         <link rel="stylesheet" href="style.css" type="text/css" />
         <script type="text/javascript">
@@ -60,19 +61,22 @@
             */ 
            function classifyBtnClicked()
            {
-              try 
-              {
+              //try 
+              //{
                  var owlXml = document.getElementById('ontologyText').value;
                  
-                 var stopwatch = new Stopwatch();
+                 var totalClock = new Stopwatch();
+                 var clock = new Stopwatch();
                  
-                 stopwatch.start();
-                 var ontology = owl.xml.parse(owlXml);
-                 var parsingTime = stopwatch.stop();
+                 totalClock.start();
+                 clock.start();
+                 var ontology = owl.xml.parse(owlXml, handleError);
+                 var parsingTime = clock.stop();
                  
-                 stopwatch.start();
+                 clock.start();
                  reasoner = new owl.Reasoner(ontology);
-                 var classificationTime = stopwatch.stop(); 
+                 var classificationTime = clock.stop(); 
+                 var totalTime = totalClock.stop();
                  
                  // Hide the Classify button and the ontology text.
                  document.getElementById('sampleOntologies').style.display = 'none';
@@ -81,7 +85,15 @@
                  
                  // Display the classification information.
                  document.getElementById('parsingTime').innerHTML = parsingTime;
-                 document.getElementById('classificationTime').innerHTML = classificationTime;
+                 document.getElementById('normalizationTime').innerHTML = 
+                    reasoner.timeInfo.normalization;
+                 document.getElementById('opropSubsumptionTime').innerHTML = 
+                    reasoner.timeInfo.objectPropertySubsumption;
+                 document.getElementById('classificationTime').innerHTML = 
+                    reasoner.timeInfo.classification;
+                 document.getElementById('aBoxRewritingTime').innerHTML = 
+                    reasoner.timeInfo.aBoxRewriting;
+                 document.getElementById('totalTime').innerHTML = totalTime;
                  document.getElementById('classCount').innerHTML = ontology.getClassCount();
                  document.getElementById('opropCount').innerHTML = 
                     ontology.getObjectPropertyCount();
@@ -92,11 +104,11 @@
                  fillSelectWithClassNames(document.getElementById('subsumee'), classes);
                  fillSelectWithClassNames(document.getElementById('subsumer'), classes)
                  document.getElementById('queryBox').style.display = 'block';
-              }
+              /*}
               catch (ex)
               {
                  handleError(ex);
-              }
+              }*/
            }
            
            /**
@@ -183,8 +195,12 @@
          <h1>OWL EL Reasoner</h1>
          <div id="ontologyBox">
             <div id="classifyOutcome">
-               Time taken to parse the ontology: <span id="parsingTime">[not processed yet]</span><br />
-               Time taken to classify the ontology: <span id="classificationTime">[not processed yet]</span><br />
+               Parsing OWL/XML took: <span id="parsingTime">[not processed yet]</span><br />
+               Normalization took: <span id="normalizationTime">[not processed yet]</span><br />
+               Object property subsumption took: <span id="opropSubsumptionTime">[not processed yet]</span><br />
+               Classification took: <span id="classificationTime">[not processed yet]</span><br />
+               ABox rewriting took: <span id="aBoxRewritingTime">[not processed yet]</span><br />
+               Total time: <span id="totalTime">[not processed yet]</span><br /><br />
                Number of classes in the ontology: <span id="classCount">[not processed yet]</span><br />
                Number of object properties in the ontology: <span id="opropCount">[not processed yet]</span>
                <br /><br />
@@ -192,9 +208,9 @@
             </div>
             <div id="sampleOntologies">
                Test ontologies: 
-               <a href="tests/subsumption/test1.owl" onclick="loadOntologyFile('tests/subsumption/test1.owl'); return false;">Test #1</a> |
-	            <a href="tests/subsumption/test2.owl" onclick="loadOntologyFile('tests/subsumption/test2.owl'); return false;">Test #2</a> |
-	            <a href="tests/subsumption/test3.owl" onclick="loadOntologyFile('tests/subsumption/test3.owl'); return false;">Test #3</a> |
+               <a href="tests/subsumption/test1.owl" onclick="loadOntologyFile('test1.owl'); return false;">Test #1</a> |
+	            <a href="tests/subsumption/test2.owl" onclick="loadOntologyFile('test2.owl'); return false;">Test #2</a> |
+	            <a href="tests/subsumption/test3.owl" onclick="loadOntologyFile('test3.owl'); return false;">Test #3</a> |
                <a href="tests/subsumption/not-galen.owl" onclick="loadOntologyFile('tests/subsumption/not-galen.owl'); return false;">NOT-GALEN</a>
             </div>
 	         <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
