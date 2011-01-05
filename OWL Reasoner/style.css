@@ -1,10 +1,114 @@
-#page { width: 780px; margin: auto }
-#sampleOntologies { display: block; margin-bottom: 10px }
-#ontologyBox { width: 780px }
-#ontologyText { width: 780px; margin-bottom: 10px }
-#classifyBtn { width: 780px; margin: 0 }
+#classifyBtn
+{ 
+   width: 100%; 
+   margin: 0 
+}
+
+#footer
+{
+   color: #999999;
+   font-size: 9pt;
+   width: 800px;
+   padding: 5px 0;
+   text-align: right;
+}
+
+#ontologyText
+{ 
+   width: 100%;
+   margin-bottom: 10px 
+}
+
+#page
+{ 
+   width: 780px;
+   margin: auto; 
+}
+
+#sampleOntologies
+{ 
+   display: block; 
+   margin-bottom: 10px 
+}
+
+#statsBox, #classesBox, #sparqlBox
+{ 
+   display: none; 
+}
+
+#tabs
+{ 
+   list-style: none; 
+   padding: 0; 
+   margin: 0 
+}
+
+#tabs li
+{
+   float: left;
+   margin: 0 0.4em 0 0
+}
+
+#tabs li a
+{
+   background-color: #F0F0F0;
+   height: 1.5em;
+   line-height: 1.5em;
+   float: left;
+   width: 7em;
+   display: block;
+   border-width: 1px 1px 0 1px;
+   border-style: solid;
+   border-color: #dcdce9;
+   color: #333333;
+   text-decoration: none;
+   text-align: center;
+   font-size: 11pt;
+}
+
+#tabs li.active a
+{
+   background-color: #CCCCCC;
+   color: #333333;
+   font-weight: bold;
+}
+
+#tabs li.disabled a
+{
+   background-color: #F0F0F0;
+   color: #CCCCCC;
+   cursor: default;
+}
+
+.classSubsumers
+{
+   margin-left: 10px;
+}
+
+.clear 
+{
+   clear: both;
+}
+
+.tabBox
+{
+   width: 100%;
+   padding: 10px;
+   border: 1px solid #dcdce9;
+}
+
+body
+{
+   color: #333333;
+   font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+   font-size: 10pt;
+}
+
+a
+{
+   color: #666666;
+}
+
 #classifyOutcome { display: none; margin-bottom: 10px }
-#queryBox { display: none }
 #queryText { width: 780px }
 #queryBtn { width: 100px }
-#subsumptionResult { margin-left: 10px }

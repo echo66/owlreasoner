@@ -2437,6 +2437,92 @@ owl.Ontology.prototype =
    getObjectProperties: function()
    {
       return this.entities[ET_OPROP];
+   },
+   
+   /**
+    * Returns number of individuals in the ontology.
+    * 
+    * @returns Number of individuals in the ontology.
+    */
+   getIndividualCount: function()
+   {
+     return this.entityCount[ET_INDIVIDUAL]; 
+   },
+
+   /**
+    * Returns an 'associative array' of all individuals in the ontology.
+    * 
+    * @returns 'Associative array' of all individuals in the ontology.
+    */
+   getIndividuals: function()
+   {
+      return this.entities[ET_INDIVIDUAL];
+   }, 
+   
+   /**
+    * Returns the number of axioms of the given types (optionally) in the ontology.
+    *
+    * @param types (optional) Array containing types of axioms to count. If the argument is not 
+    * provided, the total number of axioms is returned.
+    * @returns Number of axioms of the given types in the ontology.
+    */
+   getSize: function(types)
+   {
+      if (!types)
+      {
+         return this.axioms.length;
+      }
+      
+      var axioms = this.axioms;
+      var axiomCount = axioms.length;
+      var typeCount = types.length;
+      var size = 0;
+      
+      for (var axiomIndex = 0; axiomIndex < axiomCount; axiomIndex++)
+      {
+         var axiom = axioms[axiomIndex];
+         
+         for (var typeIndex = 0; typeIndex < typeCount; typeIndex++)
+         {
+            if (axiom.type == types[typeIndex])
+            {
+               size++;
+               break;
+            }
+         }
+      }
+      
+      return size;
+   },
+
+   /**
+    * Returns the size of ABox of the ontology.
+    * 
+    * @returns Size of the ABox of the ontology.
+    */
+   getAboxSize: function()
+   {
+      return this.getSize([FACT_CLASS, FACT_OPROP]);
+   },
+   
+   /**
+    * Returns the size of TBox of the ontology.
+    * 
+    * @returns Size of the TBox of the ontology.
+    */
+   getTboxSize: function()
+   {
+      return this.getSize([AXIOM_CLASS_EQ, AXIOM_CLASS_SUB, AXIOM_OPROP_SUB]);
+   },
+
+   /**
+    * Returns the size of RBox of the ontology.
+    * 
+    * @returns Size of the RBox of the ontology.
+    */   
+   getRboxSize: function()
+   {
+      return this.getSize([AXIOM_OPROP_SUB]);
    }
 };
 
