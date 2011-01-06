@@ -1,7 +1,13 @@
 #classifyBtn
 { 
    width: 100%; 
-   margin: 0 
+   margin: 10px 0 0 0;
+}
+
+#content
+{ 
+   padding: 10px 0 0 20px;
+   width: 780px;
 }
 
 #footer
@@ -13,16 +19,24 @@
    text-align: right;
 }
 
-#ontologyText
-{ 
-   width: 100%;
-   margin-bottom: 10px 
+#header
+{
+   padding-bottom: 5px;
 }
 
-#page
+#ontologyText
+{ 
+   width: 100%; 
+}
+
+#queryBtn
+{ 
+   width: 100px;
+}
+
+#queryText
 { 
    width: 780px;
-   margin: auto; 
 }
 
 #sampleOntologies
@@ -40,13 +54,13 @@
 { 
    list-style: none; 
    padding: 0; 
-   margin: 0 
+   margin: 0;
 }
 
 #tabs li
 {
    float: left;
-   margin: 0 0.4em 0 0
+   margin: 0 0.4em 0 0;
 }
 
 #tabs li a
@@ -80,6 +94,12 @@
    cursor: default;
 }
 
+.classLink
+{
+   cursor: pointer;
+   text-decoration: underline;
+}
+
 .classSubsumers
 {
    margin-left: 10px;
@@ -99,16 +119,14 @@
 
 body
 {
-   color: #333333;
+   background: #fff url(images/logoleft.gif) no-repeat 6px 44px;
+   color: #666666;
    font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
    font-size: 10pt;
+   margin: 0 60px 0 44px;
 }
 
 a
 {
    color: #666666;
 }
-
-#classifyOutcome { display: none; margin-bottom: 10px }
-#queryText { width: 780px }
-#queryBtn { width: 100px }

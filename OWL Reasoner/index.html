@@ -135,7 +135,8 @@
                classElement.style.display = "block";
                
                var titleElement = document.createElement('a');
-               titleElement.innerText = className;
+               titleElement.setAttribute('class', 'classLink')
+               titleElement.innerHTML = className;
                assignClassOnClick(titleElement, classSubsumersId);
                classElement.appendChild(titleElement);
                
@@ -235,16 +236,26 @@
           * 
           * @param url URL of the file containing an ontology to load.
           */
-         function loadOntologyFile(url)
+         function showOntologyFile(url)
          {
             try
             {
+               var nav = navigator.appVersion; 
+               
+               // For Chrome, we just open the ontology file in a new tab, since there is no way 
+               // to read local files in Chrome.
+               if (nav.indexOf('Chrome') >= 0)
+               {
+                  return true;
+               }
+               
                var file = new TextFile(url);
                document.getElementById('ontologyText').value = file.getText();
+               return false;
             }
             catch (ex)
             {
-               handleError(ex);
+               return false;
             }
          }
          
@@ -254,37 +265,11 @@
             var classElement = document.getElementById('classHierarchy').firstChild;
             
             while (classElement)
-            {
-               if (classElement.nodeType != 1)
-               {
-                  continue;
-               }
+            {               
+               var titleElement = classElement.firstChild;
+               var occurenceIndex = titleElement.innerHTML.indexOf(text);
                
-               var shouldDisplay = false;
-               var innerElement = classElement.firstChild;
-               
-               while (innerElement)
-               {
-                  if (innerElement.nodeType != 1)
-                  {
-                     continue;
-                  }
-                  
-                  if (innerElement.nodeName.toLowerCase() == 'a')
-                  {
-                     var occurenceIndex = innerElement.innerText.indexOf(text);
-                     
-                     if (text == '' || occurenceIndex >= 0)
-                     {
-                        shouldDisplay = true;
-                        break;
-                     }
-                  }
-                  
-                  innerElement = innerElement.nextSibling;
-               }
-               
-               classElement.style.display = (shouldDisplay) ? "block" : "none";
+               classElement.style.display = (text == '' || occurenceIndex >= 0) ? "block" : "none";
                classElement = classElement.nextSibling;
             }
          }
@@ -310,7 +295,10 @@
       </script>
    </head>
     <body onload="init();">
-      <div id="page">
+      <div id="header">
+         <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester"><img src="images/logomanchester.gif" alt="The University of Manchester"/></a> 
+      </div>
+      <div id="content">
          <h1>OWL EL Reasoner</h1>
          <ul id="tabs">
             <li id="ontologyTab" class="active"><a href="ontology.html" onclick="return false;">Ontology</a></li>
@@ -322,10 +310,10 @@
          <div id="ontologyBox" class="tabBox">
             <div id="sampleOntologies">
                Test ontologies: 
-               <a href="tests/subsumption/test1.owl" onclick="loadOntologyFile('test1.owl'); return false;">Test #1</a> |
-	            <a href="tests/subsumption/test2.owl" onclick="loadOntologyFile('test2.owl'); return false;">Test #2</a> |
-	            <a href="tests/subsumption/test3.owl" onclick="loadOntologyFile('test3.owl'); return false;">Test #3</a> |
-               <a href="tests/subsumption/not-galen.owl" onclick="loadOntologyFile('tests/subsumption/not-galen.owl'); return false;">NOT-GALEN</a>
+               <a href="tests/subsumption/test1.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test1.owl');">Test #1</a> |
+	            <a href="tests/subsumption/test2.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test2.owl');">Test #2</a> |
+	            <a href="tests/subsumption/test3.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test3.owl');">Test #3</a> |
+               <a href="tests/subsumption/not-galen.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/not-galen.owl');">NOT-GALEN</a>
             </div>
 	         <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
             <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
@@ -348,7 +336,7 @@
 	         Total axioms: <span id="axiomCount">[not processed yet]</span><br />
          </div>
          <div id="classesBox" class="tabBox">
-            Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="showMatchingClasses();"/>
+            Class: <input type="text" id="classSearch" placeholder="Start typing here." onchange="showMatchingClasses();"/><br />
             <div id="classHierarchy"></div>
          </div>
          <div id="sparqlBox" class="tabBox">
@@ -358,7 +346,7 @@
             <br/><br />Results:
             <div id="queryResults"></div>
          </div>
-         <div id="footer">Developed by <a href="mailto:vitaly.stepanov@gmail.com">Vit Stepanovs</a>.<br /> Copyright &copy; <a href="http://www.cs.manchester.ac.uk/">The University of Manchester</a>, 2010-2011.</div>
+         <div id="footer">Developed by <a href="mailto:vitaly.stepanov@gmail.com">Vit Stepanovs</a>.<br /> Copyright &copy; <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester">The University of Manchester</a>, 2010-2011.</div>
       </div>
     </body>
 </html>

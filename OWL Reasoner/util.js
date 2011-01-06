@@ -75,17 +75,17 @@ TextFile.prototype =
          throw new 'URL of the file is not specified!';
       }
       
-      var xhr = new XMLHttpRequest();
-      
-      try 
-      {
-         xhr.open('GET', this.url, false);
-         xhr.send(null);
-         return xhr.responseText;
-      }
-      catch (ex)
-      {
-         throw ex;
+	   var xhr = new XMLHttpRequest();
+         
+	   try
+	   {
+	      xhr.open('GET', this.url, false);
+	      xhr.send(null);
+	      return xhr.responseText;
+	   } 
+	   catch (ex) 
+	   {
+	      throw ex;
       }
    } 
 };
