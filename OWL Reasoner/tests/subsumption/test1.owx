@@ -1,0 +1,23 @@
+<Ontology>
+	<SubClassOf>
+		<ObjectIntersectionOf>
+			<Class IRI="A" />
+			<Class IRI="B" />
+		</ObjectIntersectionOf>
+		<Class IRI="C" />
+	</SubClassOf>
+	<SubClassOf>
+		<Class IRI="A" />
+		<ObjectSomeValuesFrom>
+			<ObjectProperty IRI="P" />
+			<Class IRI="D" />
+		</ObjectSomeValuesFrom>
+	</SubClassOf>
+	<SubClassOf>
+		<ObjectSomeValuesFrom>
+			<ObjectProperty IRI="P" />
+			<Class IRI="D" />
+		</ObjectSomeValuesFrom>
+		<Class IRI="B" />
+	</SubClassOf>
+</Ontology>

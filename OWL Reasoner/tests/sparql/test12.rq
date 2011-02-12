@@ -1,0 +1,5 @@
+SELECT DISTINCT *
+WHERE {
+   ?x <http://hello.com/exists/> 'apple' , 'orange' , 'grapefruit' ;
+      <http://hello.com/existed/> 'peach', 'lemon' .
+}

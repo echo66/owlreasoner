@@ -1,0 +1,4 @@
+SELECT REDUCED ?x ?y
+WHERE {
+   ?x 'aaa'
+}

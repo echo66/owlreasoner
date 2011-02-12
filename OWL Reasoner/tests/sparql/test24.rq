@@ -1,0 +1,8 @@
+# Test empty prefix names & empty local names.
+
+PREFIX : <http://hello.ru/>
+
+SELECT ?x
+WHERE {
+    ?x :a :
+}

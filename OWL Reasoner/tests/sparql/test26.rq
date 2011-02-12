@@ -1,0 +1,8 @@
+# Test different expressions in ORDER BY clause.
+
+SELECT REDUCED ?x ?y
+{
+   ?x <http://hello.com/exists/> "banana" ;
+      <http://hello.com/exists1/> ?y
+}
+ORDER BY ?x ASC(?x) DESC(?y)

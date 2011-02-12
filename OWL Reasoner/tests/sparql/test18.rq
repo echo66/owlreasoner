@@ -1,0 +1,8 @@
+# See if ORDER BY is parsed correctly.
+
+SELECT REDUCED ?x
+{
+   ?x <http://hello.com/exists/> 'apple' , 'orange' , 'grapefruit' ;
+      <http://hello.com/existed/> 'peach', 'lemon' .
+}
+ORDER BY ?x

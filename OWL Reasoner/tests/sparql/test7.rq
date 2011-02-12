@@ -1,0 +1,5 @@
+SELECT ?x ?y
+WHERE {
+   ?x <http://hello.com/exists/> 'idiot' .
+   ?y <http://hello1.com/exists/> <ol>
+}

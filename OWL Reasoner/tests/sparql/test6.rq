@@ -1,0 +1,10 @@
+PREFIX hello: <http://hello.ru/>
+BASE <http://owl.ru/>
+PREFIX hello1: <http://hello1.ru/>
+PREFIX hello2: <http://hello2.ru/>
+
+SELECT ?x ?y
+WHERE {
+   ?x hello:exists 'idiot' .
+   ?y <http://hello.com/exists/> <ol>
+}

@@ -1,0 +1,2 @@
+SELECT REDUCED ?x ?y
+WHERE { }

@@ -1,0 +1,27 @@
+<Ontology>
+    <SubObjectPropertyOf>
+        <ObjectPropertyChain>
+            <ObjectProperty IRI="love" />
+            <ObjectProperty IRI="eat" />
+        </ObjectPropertyChain>
+        <ObjectProperty IRI="love" />
+    </SubObjectPropertyOf>
+    <ClassAssertion>
+        <Class IRI="Male" />
+        <NamedIndividual IRI="A" />
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="Female" />
+        <NamedIndividual IRI="B" />
+    </ClassAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="love" />
+        <NamedIndividual IRI="A" />
+        <NamedIndividual IRI="B" />
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="eat" />
+        <NamedIndividual IRI="B" />
+        <NamedIndividual IRI="C" />
+    </ObjectPropertyAssertion>
+</Ontology>

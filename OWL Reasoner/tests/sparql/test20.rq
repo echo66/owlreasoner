@@ -1,0 +1,10 @@
+# See if LIMIT and OFFSET can follow ORDER BY
+
+SELECT REDUCED ?x
+{
+   ?x <http://hello.com/exists/> 'apple' , 'orange' , 'grapefruit' ;
+      <http://hello.com/existed/> 'peach', 'lemon' .
+}
+ORDER BY ?x
+LIMIT 10
+OFFSET 20

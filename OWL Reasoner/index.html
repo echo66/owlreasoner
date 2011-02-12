@@ -4,349 +4,362 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <title>OWL EL Reasoner</title>
-        <script src="owl.js" type="text/javascript"></script>
-        <script src="query.js" type="text/javascript"></script>
-        <script src="util.js" type="text/javascript"></script>
         <link rel="stylesheet" href="style.css" type="text/css" />
-        <script type="text/javascript">
-        // Holds reference to the reasoner after some ontology is classified.
-        var reasoner = null;
-        var tabControl = null;
-        
-        /**
-         * Shows the given error message in the browser.
-         * 
-         * @param msg Error message to show in the browser.
-         */
-        function handleError(msg)
-        {
-           alert('ERROR: ' + msg);
-        }
-        
-        /**
-         * Toggles the visibility of the ontology text box on the page. 
-         */
-        function toggleOntologyTextVisibility()
-        {
-           var ontologyText = document.getElementById('ontologyText');
-           
-           if (ontologyText.style.display == 'block')
-           {
-              ontologyText.style.display = 'none';
-           }
-           else
-           {
-              ontologyText.style.display = 'block';
-           }
-        }
-        
-        /***
-         * Fills the given Select box with names of classes from the given 'associative array'.
-         * 
-         * @param selectBox Select box to fill.
-         * @param classes 'Associative array' with classes to add to the select box.
-         */
-        function fillSelectWithClassNames(selectBox, classes)
-        {
-           var classCount = classes.length;
-           
-           for (var classIndex = 0; classIndex < classCount; classIndex++)
-           {
-              var option = document.createElement('option');
-              option.text = classes[classIndex];
-              option.value = classes[classIndex];
-              selectBox.add(option, null);
-           }
-        }
-        
-        function prepareOntologyTab()
-        {
-            // Hide the Classify button and sample ontologies.
-            document.getElementById('sampleOntologies').style.display = 'none';
-            document.getElementById('classifyBtn').style.display = 'none';
-            document.getElementById('ontologyText').readOnly = true;
-            tabControl.setEnabled('ontologyTab', true);
-        }
-        
-        function prepareStatsTab(ontology, parsingTime, totalTime)
-        {
-            // Show the classification information.
-            document.getElementById('parsingTime').innerHTML = parsingTime;
-            document.getElementById('normalizationTime').innerHTML = 
-               reasoner.timeInfo.normalization;
-            document.getElementById('opropSubsumptionTime').innerHTML = 
-               reasoner.timeInfo.objectPropertySubsumption;
-            document.getElementById('classificationTime').innerHTML = 
-               reasoner.timeInfo.classification;
-            document.getElementById('aBoxRewritingTime').innerHTML = 
-               reasoner.timeInfo.aBoxRewriting;
-            document.getElementById('totalTime').innerHTML = totalTime;
-            
-            document.getElementById('classCount').innerHTML = ontology.getClassCount();
-            document.getElementById('opropCount').innerHTML = ontology.getObjectPropertyCount();
-            document.getElementById('individualCount').innerHTML = ontology.getIndividualCount();
-            
-            document.getElementById('tboxSize').innerHTML = ontology.getTboxSize();
-            document.getElementById('aboxSize').innerHTML = ontology.getAboxSize();
-            document.getElementById('rboxSize').innerHTML = ontology.getRboxSize();
-            document.getElementById('axiomCount').innerHTML = ontology.getSize();               
-            tabControl.setEnabled('statsTab', true);
-        }
-        
-        function createClassesArray(classesObject)
-        {
-           var classes = [];
-           
-           for (var className in classesObject)
-           {
-              classes.push(className);
-           }
-           
-           classes.sort();
-           return classes;
-        }
-        
-        function assignClassOnClick(element, subsumersId)
-        {
-            element.onclick = function()
-            {
-               var subsumers = document.getElementById(subsumersId);
-                  
-               subsumers.style.display = (subsumers.style.display == "none") ? "block" : "none";
-            };
-        }
-        
-        function prepareClassesTab(ontology)
-        {
-            // Fill the select boxes.
-            var classes = createClassesArray(ontology.getClasses());
-            
-            var classCount = classes.length;
-            var subsumers = reasoner.classSubsumers;
-            var root = document.getElementById('classHierarchy');
-            
-            for (var classIndex = 0; classIndex < classCount; classIndex++)
-            {
-               var className = classes[classIndex];
-               var classSubsumersId = 'classSubsumers' + classIndex;
-               
-               var classElement = document.createElement('div');
-               classElement.id = 'classInfo' + classIndex;
-               classElement.style.display = "block";
-               
-               var titleElement = document.createElement('a');
-               titleElement.setAttribute('class', 'classLink')
-               titleElement.innerHTML = className;
-               assignClassOnClick(titleElement, classSubsumersId);
-               classElement.appendChild(titleElement);
-               
-               var subsumersElement = document.createElement('div');
-               subsumersElement.id = classSubsumersId;
-               subsumersElement.className = "classSubsumers";
-               subsumersElement.style.display = "none";
-               
-               var classSubsumers = createClassesArray(subsumers.get(className));
-               var classSubsumerCount = classSubsumers.length;
-               
-               for (var subsumerIndex = 0; subsumerIndex < classSubsumerCount; subsumerIndex++)
-               {
-                  subsumersElement.innerHTML += classSubsumers[subsumerIndex] + '<br />';
-               }
-               
-               classElement.appendChild(subsumersElement);
-               
-               root.appendChild(classElement);
-            }
-            
-            tabControl.setEnabled('classesTab', true);
-        }
-        
-        function prepareSparqlTab(ontology)
-        {
-            tabControl.setEnabled('sparqlTab', true);
-        }
-        
-        /**
-         * Parses the ontology from the given OWL/XML and builds a reasoner object for it.
-         */ 
-        function classifyBtnClicked()
-        {
-           try 
-           {
-              var owlXml = document.getElementById('ontologyText').value;
-              
-              var totalClock = new Stopwatch();
-              var clock = new Stopwatch();
-              
-              totalClock.start();
-              clock.start();
-              var ontology = owl.xml.parse(owlXml, handleError);
-              var parsingTime = clock.stop();
-              
-              clock.start();
-              reasoner = new owl.Reasoner(ontology);
-              var classificationTime = clock.stop(); 
-              var totalTime = totalClock.stop();
-              
-              prepareOntologyTab();
-              prepareStatsTab(ontology, parsingTime, totalTime);
-              prepareClassesTab(ontology);
-              prepareSparqlTab();
-               
-              tabControl.select('statsTab');
-           }
-           catch (ex)
-           {
-              handleError(ex);
-           }
-        }
-        
-        /**
-         * Processes the query from the given string and outputs the result.
-         */
-        function queryBtnClicked()
-        {
-           try 
-           {
-              if (!reasoner)
-              {
-                 throw 'The reasoner has not been initialized yet!';
-              }
-              
-              var queryTxt = document.getElementById('queryText').value;
-              
-              var stopwatch = new Stopwatch();
-              stopwatch.start();
-              var query = owl.sparql.parse(queryTxt);
-              var result = reasoner.answerQuery(query);
-              var time = stopwatch.stop();
-              
-              var queryResults = document.getElementById('queryResults');
-              queryResults.innerHTML += 
-                 "<br />" + '"' + queryTxt + '": ' +  result + ' (answered in ' + time + ')';
-           }
-           catch (ex)
-           {
-              handleError(ex);
-           }
-        }
-        
-         /**
-          * Loads ontology stored at the given path into the ontology text box.
-          * 
-          * @param url URL of the file containing an ontology to load.
-          */
-         function showOntologyFile(url)
-         {
-            try
-            {
-               var nav = navigator.appVersion; 
-               
-               // For Chrome, we just open the ontology file in a new tab, since there is no way 
-               // to read local files in Chrome.
-               if (nav.indexOf('Chrome') >= 0)
-               {
-                  return true;
-               }
-               
-               var file = new TextFile(url);
-               document.getElementById('ontologyText').value = file.getText();
-               return false;
-            }
-            catch (ex)
-            {
-               return false;
-            }
-         }
-         
-         function showMatchingClasses()
-         {
-            var text = document.getElementById('classSearch').value;
-            var classElement = document.getElementById('classHierarchy').firstChild;
-            
-            while (classElement)
-            {               
-               var titleElement = classElement.firstChild;
-               var occurenceIndex = titleElement.innerHTML.indexOf(text);
-               
-               classElement.style.display = (text == '' || occurenceIndex >= 0) ? "block" : "none";
-               classElement = classElement.nextSibling;
-            }
-         }
-         
-         function init()
-	      {
-	         var tabs =
-	         [
-	            {tabId: 'ontologyTab', boxId: 'ontologyBox', enabled: true },
-               {tabId: 'statsTab',    boxId: 'statsBox',    enabled: false},
-               {tabId: 'classesTab',  boxId: 'classesBox',  enabled: false},
-               {tabId: 'sparqlTab',   boxId: 'sparqlBox',   enabled: false},
-            ];
-            
-            var classNames = 
-            {
-               active: 'active',
-               disabled: 'disabled'
-            };
-            
-            tabControl = new TabControl(tabs, classNames);
-         }
-      </script>
-   </head>
+    </head>
     <body onload="init();">
-      <div id="header">
-         <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester"><img src="images/logomanchester.gif" alt="The University of Manchester"/></a> 
-      </div>
-      <div id="content">
-         <h1>OWL EL Reasoner</h1>
-         <ul id="tabs">
-            <li id="ontologyTab" class="active"><a href="ontology.html" onclick="return false;">Ontology</a></li>
-            <li id="statsTab" class="disabled"><a href="stats.html" onclick="return false;">Stats</a></li>
-            <li id="classesTab" class="disabled"><a href="classes.html" onclick="return false;">Classes</a></li>
-            <li id="sparqlTab" class="disabled"><a href="sparql.html" onclick="return false;">SPARQL</a></li>
-         </ul>
-         <div class="clear" />
-         <div id="ontologyBox" class="tabBox">
-            <div id="sampleOntologies">
-               Test ontologies: 
-               <a href="tests/subsumption/test1.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test1.owl');">Test #1</a> |
-	            <a href="tests/subsumption/test2.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test2.owl');">Test #2</a> |
-	            <a href="tests/subsumption/test3.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/test3.owl');">Test #3</a> |
-               <a href="tests/subsumption/not-galen.owl" target="_blank" onclick="return showOntologyFile('tests/subsumption/not-galen.owl');">NOT-GALEN</a>
+        <div id="header">
+            <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester"><img src="images/logomanchester.gif" alt="The University of Manchester"/></a> 
+        </div>
+        <div id="content">
+            <h1>OWL EL Reasoner</h1>
+            <ul id="tabs">
+                <li id="ontologyTab" class="active"><a href="ontology.html" onclick="return false;">Ontology</a></li>
+                <li id="statsTab" class="disabled"><a href="stats.html" onclick="return false;">Stats</a></li>
+                <li id="classesTab" class="disabled"><a href="classes.html" onclick="return false;">Classes</a></li>
+                <li id="sparqlTab" class="disabled"><a href="sparql.html" onclick="return false;">SPARQL</a></li>
+            </ul>
+            <div class="clear" />
+            <div id="ontologyBox" class="tabBox">
+                <div id="sampleOntologies">
+                    Test ontologies: 
+                    <a href="tests/subsumption/test1.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test1.owx');">Test #1</a> |
+	                <a href="tests/subsumption/test2.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test2.owx');">Test #2</a> |
+	                <a href="tests/subsumption/test3.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test3.owx');">Test #3</a> |
+	                <a href="tests/subsumption/test4.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test4.owx');">Test #4</a> |
+                    <a href="tests/subsumption/not-galen.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/not-galen.owx');">NOT-GALEN</a>
+                </div>
+                <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
+                <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
             </div>
-	         <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
-            <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
-         </div>
-         <div id="statsBox" class="tabBox">
-            Parsing OWL/XML took: <span id="parsingTime">[not processed yet]</span><br />
-	         Normalization took: <span id="normalizationTime">[not processed yet]</span><br />
-	         Object property subsumption took: <span id="opropSubsumptionTime">[not processed yet]</span><br />
-	         Classification took: <span id="classificationTime">[not processed yet]</span><br />
-	         ABox rewriting took: <span id="aBoxRewritingTime">[not processed yet]</span><br />
-            Total time: <span id="totalTime">[not processed yet]</span><br /><br />
+            <div id="statsBox" class="tabBox">
+                Parsing OWL/XML took: <span id="parsingTime">[not processed yet]</span><br />
+	            Normalization took: <span id="normalizationTime">[not processed yet]</span><br />
+	            Object property subsumption took: <span id="opropSubsumptionTime">[not processed yet]</span><br />
+	            Classification took: <span id="classificationTime">[not processed yet]</span><br />
+	            ABox rewriting took: <span id="aBoxRewritingTime">[not processed yet]</span><br />
+                Total time: <span id="totalTime">[not processed yet]</span><br /><br />
             
-	         Number of classes in the ontology: <span id="classCount">[not processed yet]</span><br />
-	         Number of object properties in the ontology: <span id="opropCount">[not processed yet]</span><br />            
-            Number of individuals in the ontology: <span id="individualCount">[not processed yet]</span><br /><br />
+	            Number of classes in the ontology: <span id="classCount">[not processed yet]</span><br />
+	            Number of object properties in the ontology: <span id="opropCount">[not processed yet]</span><br />            
+                Number of individuals in the ontology: <span id="individualCount">[not processed yet]</span><br /><br />
             
-            TBox size: <span id="tboxSize">[not processed yet]</span><br />
-            ABox size: <span id="aboxSize">[not processed yet]</span><br />
-            RBox size: <span id="rboxSize">[not processed yet]</span><br />
-	         Total axioms: <span id="axiomCount">[not processed yet]</span><br />
-         </div>
-         <div id="classesBox" class="tabBox">
-            Class: <input type="text" id="classSearch" placeholder="Start typing here." onchange="showMatchingClasses();"/><br />
-            <div id="classHierarchy"></div>
-         </div>
-         <div id="sparqlBox" class="tabBox">
-	         SPARQL query:
-            <textarea id="queryText" cols="40" rows="5" placeholder="Please input your SPARQL query here."></textarea>
-            <input type="button" id="queryBtn" value="Execute" onclick="queryBtnClicked();"/>
-            <br/><br />Results:
-            <div id="queryResults"></div>
-         </div>
-         <div id="footer">Developed by <a href="mailto:vitaly.stepanov@gmail.com">Vit Stepanovs</a>.<br /> Copyright &copy; <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester">The University of Manchester</a>, 2010-2011.</div>
-      </div>
+                TBox size: <span id="tboxSize">[not processed yet]</span><br />
+                ABox size: <span id="aboxSize">[not processed yet]</span><br />
+                RBox size: <span id="rboxSize">[not processed yet]</span><br />
+	            Total axioms: <span id="axiomCount">[not processed yet]</span><br />
+            </div>
+            <div id="classesBox" class="tabBox">
+                Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="showMatchingClasses();"/><br />
+                <div id="classHierarchy"></div>
+            </div>
+            <div id="sparqlBox" class="tabBox">
+	            SPARQL query:
+                <textarea id="queryText" cols="40" rows="10" placeholder="Please input your SPARQL query here."></textarea>
+                <input type="button" id="queryBtn" value="Execute" onclick="queryBtnClicked();"/>
+                <br/><br />
+                <div id="queryResults"></div>
+            </div>
+            <div id="footer">Developed by <a href="mailto:vitaly.stepanov@gmail.com">Vit Stepanovs</a>.<br /> Copyright &copy; <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester">The University of Manchester</a>, 2010-2011.</div>
+        </div>
+
+        <script src="query-min.js" type="text/javascript"></script>
+        <script src="jsw-min.js" type="text/javascript"></script>
+        <script src="util-min.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            // Holds reference to the reasoner after some ontology is classified.
+            var reasoner, tabControl;
+        
+            /**
+             * Shows the given error message in the browser.
+             * 
+             * @param msg Error message to show in the browser.
+             */
+            function handleError(msg) {
+                alert('ERROR: ' + msg);
+            }
+        
+            /**
+             * Toggles the visibility of the ontology text box on the page. 
+             */
+            function toggleOntologyTextVisibility() {
+                var ontologyText = document.getElementById('ontologyText');
+           
+                if (ontologyText.style.display == 'block') {
+                    ontologyText.style.display = 'none';
+                } else {
+                    ontologyText.style.display = 'block';
+                }
+            }
+        
+            /**
+             * Prepares the tab with ontology for the display after the ontology is processed.
+             */
+            function prepareOntologyTab() {
+                // Hide the Classify button and sample ontologies.
+                document.getElementById('sampleOntologies').style.display = 'none';
+                document.getElementById('classifyBtn').style.display = 'none';
+                document.getElementById('ontologyText').readOnly = true;
+                tabControl.setEnabled('ontologyTab', true);
+            }
+        
+            /**
+             * Prepares the tab with statistical information (execution time etc.) for display after
+             * the ontology is processed.
+             * 
+             * @param ontology Ontology object representing the ontology processed.
+             * @param parsingTime String containing information about how long did ontology parsing
+             * take.
+             * @param totalTime String containing information about how long did the ontology
+             * processing took on total.
+             */
+            function prepareStatsTab(ontology, parsingTime, totalTime) {
+                // Show the classification information.
+                document.getElementById('parsingTime').innerHTML = parsingTime;
+                document.getElementById('normalizationTime').innerHTML = 
+                    reasoner.timeInfo.normalization;
+                document.getElementById('opropSubsumptionTime').innerHTML = 
+                    reasoner.timeInfo.objectPropertySubsumption;
+                document.getElementById('classificationTime').innerHTML = 
+                    reasoner.timeInfo.classification;
+                document.getElementById('aBoxRewritingTime').innerHTML = 
+                    reasoner.timeInfo.aBoxRewriting;
+                document.getElementById('totalTime').innerHTML = totalTime;
+            
+                document.getElementById('classCount').innerHTML = ontology.getClassCount();
+                document.getElementById('opropCount').innerHTML = ontology.getObjectPropertyCount();
+                document.getElementById('individualCount').innerHTML = ontology.getIndividualCount();
+            
+                document.getElementById('tboxSize').innerHTML = ontology.getTboxSize();
+                document.getElementById('aboxSize').innerHTML = ontology.getAboxSize();
+                document.getElementById('rboxSize').innerHTML = ontology.getRboxSize();
+                document.getElementById('axiomCount').innerHTML = ontology.getSize();               
+                tabControl.setEnabled('statsTab', true);
+            }
+        
+            /**
+             * Assigns an onClick handler to the HTML element representing some class in the
+             * ontology.
+             * 
+             * @param element Element to assign the onClick handler to.
+             * @param subsumersId ID of the element containing all subsumsers of the class
+             * represented by the element.
+             */
+            function assignClassOnClick(element, subsumersId) {
+                element.onclick = function() {
+                    var subsumers = document.getElementById(subsumersId);
+                  
+                    subsumers.style.display = 
+                        (subsumers.style.display == "none") ? "block" : "none";
+                };
+            }
+        
+            /**
+             * Prepares the Classes tab for display after the ontology has been processed. Builds
+             * a subsumption tree (kind of).
+             *
+             * @param ontology Ontology object representing the ontology processed.
+             */
+            function prepareClassesTab(ontology) {
+                var classes, classCount, classElement, classIndex, className, classSubsumers, 
+                    classSubsumersId, classSubsumerCount, subsumersElement, subsumerIndex, 
+                    titleElement;
+
+                classes = objectPropertiesToArray(ontology.getClasses()),
+                classCount = classes.length;
+                subsumers = reasoner.classSubsumers;
+                root = document.getElementById('classHierarchy');
+            
+                for (classIndex = 0; classIndex < classCount; classIndex++) {
+                    className = classes[classIndex];
+                    classSubsumersId = 'classSubsumers' + classIndex;
+               
+                    classElement = document.createElement('div');
+                    classElement.id = 'classInfo' + classIndex;
+                    classElement.style.display = "block";
+               
+                    titleElement = document.createElement('a');
+                    titleElement.setAttribute('class', 'classLink')
+                    titleElement.innerHTML = className;
+                    assignClassOnClick(titleElement, classSubsumersId);
+                    classElement.appendChild(titleElement);
+               
+                    subsumersElement = document.createElement('div');
+                    subsumersElement.id = classSubsumersId;
+                    subsumersElement.className = 'classSubsumers';
+                    subsumersElement.style.display = 'none';
+               
+                    classSubsumers = objectPropertiesToArray(subsumers.get(className));
+                    classSubsumerCount = classSubsumers.length;
+               
+                    for (subsumerIndex = 0; subsumerIndex < classSubsumerCount; subsumerIndex++) {
+                        subsumersElement.innerHTML += classSubsumers[subsumerIndex] + '<br />';
+                    }
+               
+                    classElement.appendChild(subsumersElement);
+               
+                    root.appendChild(classElement);
+                }
+            
+                tabControl.setEnabled('classesTab', true);
+            }
+
+            /**
+             * Prepare SPARQL tab for display after the ontology has been processed.
+             */        
+            function prepareSparqlTab(ontology) {
+                tabControl.setEnabled('sparqlTab', true);
+            }
+        
+           /**
+            * Parses the ontology from the given OWL/XML and builds a reasoner object for it.
+            */ 
+            function classifyBtnClicked() {
+                var clock, classificationTime, ontology, owlXml, totalClock, totalTime;
+
+//                try {
+                    owlXml = document.getElementById('ontologyText').value;
+              
+                    totalClock = new jsw.util.Stopwatch();
+                    clock = new jsw.util.Stopwatch();
+              
+                    totalClock.start();
+                    clock.start();
+                    ontology = jsw.owl.xml.parse(owlXml, handleError);
+                    parsingTime = clock.stop();
+              
+                    clock.start();
+                    reasoner = new jsw.owl.Reasoner(ontology);
+                    classificationTime = clock.stop(); 
+                    totalTime = totalClock.stop();
+              
+                    prepareOntologyTab();
+                    prepareStatsTab(ontology, parsingTime, totalTime);
+                    prepareClassesTab(ontology);
+                    prepareSparqlTab();
+               
+                    tabControl.select('statsTab');
+//               } catch (ex) {
+//                    handleError(ex);
+//               }
+            }
+        
+           /**
+            * Processes the query from the given string and outputs the result.
+            */
+            function queryBtnClicked() {
+                var column, doc, html, query, queryResults, queryTxt, result, row, rowCount,
+                    rowIndex, stopwatch, time;
+
+                try {
+                    if (!reasoner) {
+                        throw 'The reasoner has not been initialized yet!';
+                    }
+              
+                    queryTxt = document.getElementById('queryText').value;
+              
+                    stopwatch = new jsw.util.Stopwatch();
+                    stopwatch.start();
+                    query = jsw.sparql.parse(queryTxt);
+                    result = reasoner.answerQuery(query);
+                    time = stopwatch.stop();
+              
+                    queryResults = document.getElementById('queryResults');
+                    html = '<h4>Results</h4> (obtained in ' + time + '):<br /><br />';
+                    rowCount = result.length;
+
+                    if (rowCount > 0) {
+                        html += '<table><tr>';
+                        row = result[0];
+
+                        for (column in row) {
+                            if (column && row.hasOwnProperty(column)) {
+                                html += '<th>' + column + '</th>';
+                            }
+                        }
+                        
+                        html += '</tr>';
+
+                        for (rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+                            html += '<tr>';
+
+                            row = result[rowIndex];
+                            for (column in row) {
+                                if (column && row.hasOwnProperty(column)) {
+                                    html += '<td>' + row[column] + '</td>';
+                                }
+                            }
+
+                            html += '</tr>';
+                        }
+
+                        html += '</table>';
+                    } else {
+                        html += 'No results found matching the query!';
+                    }
+
+                    queryResults.innerHTML = html;
+                } catch (ex) {
+                    handleError(ex);
+                }
+            }
+        
+           /**
+            * Loads ontology stored at the given path into the ontology text box.
+            * 
+            * @param url URL of the file containing an ontology to load.
+            */
+            function showOntologyFile(url) {
+                var nav = navigator.appVersion;
+                
+                try {      
+                    // For Chrome, we just open the ontology file in a new tab, since there is no 
+                    // way to read local files in Chrome.
+                    if (nav.indexOf('Chrome') >= 0) {
+                        return true;
+                    }
+               
+                    document.getElementById('ontologyText').value = new TextFile(url).getText();
+                    return false;
+                } catch (ex) {
+                    // Returns false, so that the file can be opened in a new window.
+                    return false;
+                }
+            }
+         
+            /**
+             * Makes sure that only the classes with the names which (partially) match the text in 
+             * the input box are displayed.
+             */
+            function showMatchingClasses() {
+                var classElement, occurenceIndex, text, titleElement;                
+
+                text = document.getElementById('classSearch').value;
+                classElement = document.getElementById('classHierarchy').firstChild;
+            
+                while (classElement) {               
+                    titleElement = classElement.firstChild;
+                    occurenceIndex = titleElement.innerHTML.indexOf(text);
+               
+                    classElement.style.display = 
+                        (text == '' || occurenceIndex >= 0) ? "block" : "none";
+                    classElement = classElement.nextSibling;
+                }
+            }
+         
+            /**
+             * Initializes the page when it is loaded.
+             */
+            function init() {
+                tabControl = new TabControl([
+	                {tabId: 'ontologyTab', boxId: 'ontologyBox', enabled: true },
+                    {tabId: 'statsTab',    boxId: 'statsBox',    enabled: false},
+                    {tabId: 'classesTab',  boxId: 'classesBox',  enabled: false},
+                    {tabId: 'sparqlTab',   boxId: 'sparqlBox',   enabled: false}
+                ], {
+                    active: 'active',
+                    disabled: 'disabled'
+                });
+            }
+        </script>
     </body>
 </html>

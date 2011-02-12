@@ -1,0 +1,9 @@
+# See if OFFSET and LIMIT can follow WHERE.
+
+SELECT REDUCED ?x
+{
+   ?x <http://hello.com/exists/> 'apple' , 'orange' , 'grapefruit' ;
+      <http://hello.com/existed/> 'peach', 'lemon' .
+}
+OFFSET 20
+LIMIT 10

@@ -1,0 +1,8 @@
+BASE <http://owl.ru/>
+PREFIX hell: <http://hell.ru/>
+
+SELECT ?x ?y
+WHERE {
+   ?x hell:exists 'idiot' .
+   ?y <http://hell.com/exists/> <http://owl.ru/ol>
+}

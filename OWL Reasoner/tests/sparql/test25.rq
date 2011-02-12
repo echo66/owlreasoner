@@ -1,0 +1,18 @@
+# Test parsing literals.
+PREFIX rdf: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT REDUCED ?x
+{
+   ?x <http://hello.com/exists/> 
+        "banana" ,
+        '''apple''' , 
+        'orange'@en , 
+        'grapefruit'^^<http://example.org/ns/userDatatype> ,
+        """plum"""^^rdf:string ,
+        25 ,
+        25.6 , 
+        25.6e+10 , 
+        true ,
+        false ,
+        jgynk546
+}

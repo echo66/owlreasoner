@@ -1,0 +1,4 @@
+SELECT ?x ?y
+{
+ ?x a ?y
+}
