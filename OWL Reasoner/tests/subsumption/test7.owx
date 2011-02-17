@@ -1,0 +1,10 @@
+<Ontology>
+   <EquivalentClasses>
+      <Class IRI="A" />
+      <Class IRI="B" />
+   </EquivalentClasses>
+   <SubClassOf>
+      <Class IRI="C" />
+      <Class IRI="A" />
+   </SubClassOf>
+</Ontology>

@@ -984,7 +984,6 @@ if (typeof(TrimPath) == 'undefined')
             tql.push(')');
         }
         with (this) {
-            alert(tql.join(''));
             return eval(tql.join(''));
         }
     }

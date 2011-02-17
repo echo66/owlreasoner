@@ -449,6 +449,10 @@ jsw.owl.xml = {
          * Parses the given OWL/XML Prefix element and adds the information about this prefix to the
          * ontology.
          *
+
+
+
+
          * @param element OWL/XML Prefix element.
          */
         function parsePrefixDefinition(element) {
@@ -1639,7 +1643,7 @@ jsw.sql = {
             } else if (type === exprTypes.LITERAL) {
                 throw 'Literal expressions in RDF queries are not supported by the library yet!';
             } else {
-                throw 'Unknown type of expression found in the RDF query: ' + subjectType + '!';
+                throw 'Unknown type of expression found in the RDF query: ' + type + '!';
             }
         }
         
@@ -1732,7 +1736,7 @@ jsw.sql = {
         for (varIndex = 0; varIndex < varCount; varIndex++) {
             variable = vars[varIndex];
 
-            if (variable.type != exprTypes.VAR) {
+            if (variable.type !== exprTypes.VAR) {
                 throw 'Unknown type of expression found in ORDER BY: ' + variable.type + '!';
             }
 
@@ -1763,7 +1767,7 @@ jsw.sql = {
  * reasoning on full EL++, but it does cover EL+ and its minor extensions.
  */
 jsw.owl.Reasoner = function (ontology) {  
-    var clock, normalizedOntology, objectPropertySubsumers;
+    var classSubsumers, clock, normalizedOntology, objectPropertySubsumers;
     
     /**
      * Stores information about how much time different steps of building a 
@@ -1777,9 +1781,9 @@ jsw.owl.Reasoner = function (ontology) {
     this.originalOntology = ontology;
    
     /**
-     * Class subsumption relation for the ontology.
+     * Class hierarchy implied by the ontology.
      */
-    this.classSubsumers = null;
+    this.classHierarchy = null;
     
     /**
      * Rewritten A-Box of the ontology.
@@ -1797,12 +1801,21 @@ jsw.owl.Reasoner = function (ontology) {
     this.timeInfo.objectPropertySubsumption = clock.stop();
    
     clock.start();
-    this.classSubsumers = this.buildClassSubsumerSets(normalizedOntology, objectPropertySubsumers);
+    classSubsumers = this.buildClassSubsumerSets(normalizedOntology, objectPropertySubsumers);
     this.timeInfo.classification = clock.stop();
    
     clock.start();
-    this.aBox = this.rewriteAbox(normalizedOntology, objectPropertySubsumers);
+    this.aBox = this.rewriteAbox(normalizedOntology, objectPropertySubsumers, classSubsumers);
     this.timeInfo.aBoxRewriting = clock.stop();
+
+    clock.start();
+    this.classHierarchy = classSubsumers.buildHierarchy(ontology.getClasses());
+    this.timeInfo.classHierarchy = clock.stop();
+
+    clock.start();
+    this.objectPropertyHierarchy =
+        objectPropertySubsumers.buildHierarchy(ontology.getObjectProperties());
+    this.timeInfo.objectPropertyHierarchy = clock.stop();
 };
 
 /** Prototype for all jsw.owl.Reasoner objects. */
@@ -1935,16 +1948,18 @@ jsw.owl.Reasoner.prototype = {
          * @returns True if the axiom is in the required form, false otherwise.
          */
         function canUseForLabelNodeInstruction(axiom, classIri) {
-            var classes, classIndex, firstArg, firstArgType;
+            var classes, classExpr, classIndex, firstArg, firstArgType;
 
-            if (axiom.type !== exprTypes.AXIOM_CLASS_SUB) {
+            classExpr = exprTypes.ET_CLASS;
+
+            if (axiom.type !== exprTypes.AXIOM_CLASS_SUB || axiom.args[1].type !== classExpr) {
                 return false;
             }
 
             firstArg = axiom.args[0];
             firstArgType = firstArg.type;
          
-            if (firstArgType === exprTypes.ET_CLASS && firstArg.IRI === classIri) {
+            if (firstArgType === classExpr && firstArg.IRI === classIri) {
                 return true;
             } else if (firstArgType !== exprTypes.CE_INTERSECT) {
                 return false;
@@ -2239,7 +2254,7 @@ jsw.owl.Reasoner.prototype = {
                 b = instruction.node2;
 
             // If the label exists already, no need to process the instruction.
-            if (edgeLabels.exists(a, b, p)) {
+            if (!edgeLabels.exists(a, b, p)) {
                 processNewEdge(a, b, p);
             }
         }
@@ -2374,12 +2389,11 @@ jsw.owl.Reasoner.prototype = {
      * relation implied by the ontology.
      * @returns An object containing the rewritten ABox.
      */
-    rewriteAbox: function (ontology, objectPropertySubsumers) {
+    rewriteAbox: function (ontology, objectPropertySubsumers, classSubsumers) {
         var axioms = ontology.axioms,
             exprTypes = jsw.owl.EXPRESSION_TYPES,
             lastAxiomIndex = axioms.length - 1,
-            originalOntology = this.originalOntology,
-            reasoner = this;
+            originalOntology = this.originalOntology;
       
         /**
          * Puts class assertions implied by the ontology into the database.
@@ -2388,7 +2402,7 @@ jsw.owl.Reasoner.prototype = {
          */
         function rewriteClassAssertions() {
             var assertions, axiom, axiomIndex, classFactType, classIri, individualClasses,
-                individualIri, subsumerIri, subsumerSets;
+                individualIri, subsumerIri;
 
             if (lastAxiomIndex < 0) {
                 return [];
@@ -2396,7 +2410,6 @@ jsw.owl.Reasoner.prototype = {
 
             axiomIndex = lastAxiomIndex;
             individualClasses = new jsw.util.PairStorage();
-            subsumerSets = reasoner.classSubsumers; 
 
             classFactType = exprTypes.FACT_CLASS;
 
@@ -2410,7 +2423,7 @@ jsw.owl.Reasoner.prototype = {
                 individualIri = axiom.individual.IRI;
                 classIri = axiom.classExpr.IRI;
             
-                for (subsumerIri in subsumerSets.get(classIri)) {
+                for (subsumerIri in classSubsumers.get(classIri)) {
                     if (originalOntology.containsClass(subsumerIri)) {
                         individualClasses.add(individualIri, subsumerIri);
                     }                
@@ -2527,27 +2540,6 @@ jsw.owl.Reasoner.prototype = {
             ClassAssertion: rewriteClassAssertions(),
 	        ObjectPropertyAssertion: rewriteObjectPropertyAssertions()
 	    };
-    },
-
-    /**
-     * Checks if the given class is the subclass of another class.
-     *
-     * @param class1 IRI of one class.
-     * @param class2 IRI of another class.
-     * @returns True if class1 is a subclass of class2, false otherwise. 
-     */
-    isSubclass: function (class1, class2) {
-        var classes = this.originalOntology.getClasses();
-      
-        if (!classes[class1]) {
-            throw 'The ontology does not contain a class \'' + class1 + '\'';
-        }
-      
-        if (!classes[class2]) {
-            throw 'The ontology does not contain a class \'' + class2 + '\'';
-        }
-      
-        return this.classSubsumers.exists(class1, class2);
     },
    
     /**
@@ -3229,6 +3221,7 @@ jsw.owl.Ontology.prototype = {
     },
 
     /**
+
      * Returns number of object properties in the ontology.
      * 
      * @returns Number of object properties in the ontology.
@@ -3489,18 +3482,247 @@ jsw.util.PairStorage = function () {
 
 jsw.util.PairStorage.prototype = {
     /**
-     * Returns an object which can be used to access all pairs in the storage with (optionally)
-     * the fixed value of the first element in all pairs.
-     * 
-     * @param first (optional) The value of the first element of all pairs to be returned.
-     * @returns Object which can be used to access all pairs in the storage.
+     * Adds a new tuple to the storage.
+     *
+     * @param first Value of the first element of the tuple.
+     * @param second Value for the second element of the tuple.
      */
-    get: function (first) {
-        if (!first) {
-            return this.storage;
+    add: function (first, second) {
+        var storage = this.storage;
+
+        if (!storage[first]) {
+            storage[first] = {};
         }
             
-        return this.storage[first] || {};
+        storage[first][second] = true;
+    },
+
+    /**
+     * Builds a hierarchy (direct acyclic graph) from the relation stored, assuming that the
+     * relation is antisymmetric.
+     *
+     * @param allowedObjects (optional) Object with property names giving the names of objects which
+     * are allowed to be present in the hierarchy generated.
+     * @returns Object representing the hierarchy implied by the relation.
+     */
+    buildHierarchy: function (allowedObjects) {
+        var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren,
+            equivalents, equivalentCount, equivalentIndex, hierarchy, name, names, newObj, node,
+            nodeChildren, stack, topNode, self, hasParents, parent, parents;
+
+        /**
+         * Inserts the given object into the DAG.
+         *
+         * @param obj Object to insert.
+         * @param candidates Array containing 'candidate' objects which could be the direct parents
+         * of the given object.
+         */
+        function dagInsert(obj, candidates) {
+            var candidate, candidateIndex, changesHappened, children, node, marked, parent, parents;
+
+            marked = {};
+            candidateIndex = candidates.length;
+
+            while (candidateIndex--) {
+                parents = objInfo[candidates[candidateIndex]].parents;
+
+                for (parent in parents) {
+                    if (parents.hasOwnProperty(parent)) {
+                        marked[parent] = true;
+                    }
+                }
+            }
+
+            do {
+                changesHappened = false;
+
+                for (node in marked) {
+                    if (marked.hasOwnProperty(node)) {
+                        parents = objInfo[node].parents;
+
+                        for (parent in parents) {
+                            if (parents.hasOwnProperty(parent) && !marked[parent]) {
+                                marked[parent] = true;
+                                changesHappened = true;
+                            }
+                        }
+                    }
+                }
+            } while (changesHappened);
+
+            parents = objInfo[obj].parents;
+            candidateIndex = candidates.length;
+
+            while (candidateIndex--) {
+                candidate = candidates[candidateIndex];
+                children = objInfo[candidate].children;
+
+                if (children && !marked[candidate]) {
+                    parents[candidate] = true;
+                    children[obj] = true;
+                }
+            }
+        }
+
+        /**
+         * Adds the given object and all of its ancestors/descendants to the DAG.
+         *
+         * @param obj Object to add to the DAG.
+         */
+        function dagClassify(obj) {
+            var candidates = [],
+                equivalents = [],
+                parent;
+
+            objInfo[obj] =  {
+                'children': {},
+                'equivalents': equivalents,
+                'parents': {}
+            };
+
+            for (parent in self.get(obj)) {
+                if (self.exists(parent, obj)) {
+                    if (parent !== obj) {
+                        objInfo[parent] = {
+                            'equivalents': [obj]
+                        };
+
+                        equivalents.push(parent);
+                    }
+                } else {
+                    if (!objInfo[parent]) {
+                        dagClassify(parent);
+                    }
+                    
+                    candidates.push(parent);
+                }
+            }
+
+            dagInsert(obj, candidates);
+        }
+
+        /**
+         * Function used to sort objects in the hierarchy generated.
+         *
+         * @param objA Object representing the first class.
+         * @param objB Object representing the second class.
+         * @returns 0 if the class names are equal, 1 if the second class name follows the first one
+         * in alphabetic order, -1 otherwise.
+         */
+        function sortFunc(objA, objB) {
+            var nameA = objA.names[0], nameB = objB.names[0];
+
+            if (nameA < nameB) {
+                return 1;
+            } else if (nameA > nameB) {
+                return -1;
+            } else {
+                return 0;
+            }
+        }
+
+        /**
+         * Creates an object to be later inserted into the hierarchy generated.
+         *
+         * @param name Name of the object to create.
+         * @param equivalents Array containing names of equivalent objects.
+         * @returns Object to be later inserted into the hierarchy generated.
+         */
+        function createHierarchyObj(name) {
+            var equivalents, equivalentCount, equivalentIndex, names, newObj;
+            
+            names = [name];
+            equivalents = objInfo[name].equivalents;
+            equivalentCount = equivalents.length;
+
+            for (equivalentIndex = 0; equivalentIndex < equivalentCount; equivalentIndex++) {
+                names.push(equivalents[equivalentIndex]);
+            }
+
+            return {
+                'names': names,
+                'children': []
+            };
+        }
+
+        self = this;
+        objInfo = {};
+
+        if (!allowedObjects) {
+            allowedObjects = this.storage;
+        }
+
+        for (obj in allowedObjects) {
+            if (allowedObjects.hasOwnProperty(obj) && !objInfo[obj]) {
+                dagClassify(obj);
+            }
+        }
+
+        hierarchy = [];
+        stack = [];
+
+        for (obj in objInfo) {
+            curObj = objInfo[obj];
+            parents = curObj.parents;
+
+            if (parents) {
+                hasParents = false;
+
+                for (parent in parents) {
+                    if (parents.hasOwnProperty(parent)) {
+                        hasParents = true;
+                        break;
+                    }
+                }
+
+                if (!hasParents) {
+                    newObj = createHierarchyObj(obj);
+                    hierarchy.push(newObj);
+                    stack.push(newObj);
+                }
+            }
+        }
+
+        while (stack.length > 0) {
+            curObj = stack.pop();
+            curObjChildren = curObj.children;
+            nodeChildren = objInfo[curObj.names[0]].children;
+
+            for (child in nodeChildren) {
+                if (nodeChildren.hasOwnProperty(child)) {
+                    newObj = createHierarchyObj(child);
+                    curObjChildren.push(newObj);
+                    stack.push(newObj);
+                }
+            }
+        }
+
+        // Sort names of equivalent classes and children of every class by name.
+        childCount = hierarchy.length;
+
+        for (childIndex = 0; childIndex < childCount; childIndex++) {
+            curObj = hierarchy[childIndex];
+            curObj.names.sort();
+            stack.push(curObj);
+        }
+
+        while (stack.length > 0) {
+            curObj = stack.pop();
+            curObjChildren = curObj.children;
+
+            childCount = curObjChildren.length;
+
+            for (childIndex = 0; childIndex < childCount; childIndex++) {
+                child = curObjChildren[childIndex];
+
+                child.names.sort();
+                stack.push(child);
+            }
+
+            curObjChildren.sort(sortFunc);
+        }
+
+        return hierarchy.sort(sortFunc);
     },
    
     /**
@@ -3550,21 +3772,20 @@ jsw.util.PairStorage.prototype = {
          
         return true;
     },         
-             
-    /**
-     * Adds a new tuple to the storage.
-     *
-     * @param first Value of the first element of the tuple.
-     * @param second Value for the second element of the tuple.
-     */
-    add: function (first, second) {
-        var storage = this.storage;
 
-        if (!storage[first]) {
-            storage[first] = {};
+    /**
+     * Returns an object which can be used to access all pairs in the storage with (optionally)
+     * the fixed value of the first element in all pairs.
+     * 
+     * @param first (optional) The value of the first element of all pairs to be returned.
+     * @returns Object which can be used to access all pairs in the storage.
+     */
+    get: function (first) {
+        if (!first) {
+            return this.storage;
         }
             
-        storage[first][second] = true;
+        return this.storage[first] || {};
     }
 };
    

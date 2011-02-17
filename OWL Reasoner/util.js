@@ -77,6 +77,8 @@ function TabControl(tabs, classNames) {
         } else {
             this.setEnabled(tab.tabId, false);
         }
+
+        document.getElementById(tab.boxId).style.display = 'none';
     }
 
     // Select the first enabled tab.
@@ -168,7 +170,7 @@ TabControl.prototype = {
         tab = this.find(id);
       
         if (!tab) {
-            // Can't select tab if it's not present or is disabled.
+            // Can't select tab if it's not registered.
             return;
         }
       
@@ -225,21 +227,106 @@ TabControl.prototype = {
 };
 
 /**
- * Puts all own properties of the given object into the array and sorts it in the ascending order.
- * 
- * @param object Object containing some properties.  
- * @returns Array containing names of all own properties of the given object in ascending order. 
+ * TreeControl component allows displaying a tree hierarchy on a page.
+ *
+ * @param hierarchy Array representing the hierarchy to show.
+ * @param hostId ID of the HTML element to host the hierarchy.
+ * @param elementPrefix Prefix of IDs for generated HTML elements.
+ * @param titleClass Name of the CSS class to use for displaying item titles.
+ * @param childrenCountClass Name of the CSS class to use for displaying the number of children of 
+ * the class.
  */
-function objectPropertiesToArray(object) {
-    var properties = [],
-        property;
-           
-    for (property in object) {
-        if (object.hasOwnProperty(property)) {
-            properties.push(property);
-        }
+function TreeControl(hierarchy, hostId, elementPrefix, titleClass, childrenCountClass) {
+    var children, childrenElement, childrenElementId, childCount, childIndex, element, elements,
+        elementTitle, item, items, itemIndex, itemElement, hostElement, names, nameCount, 
+        titleElement;
+
+    hostElement = document.getElementById(hostId);
+    elements = [];
+    items = [];
+
+    childCount = hierarchy.length;
+
+    for (childIndex = 0; childIndex < childCount; childIndex++) {
+        items.push(hierarchy[childIndex]);
+        elements.push(hostElement);
     }
-           
-    properties.sort();
-    return properties;
+
+    itemIndex = 0;
+
+    while (items.length > 0) {
+        item = items.pop();
+        element = elements.pop();
+
+        children = item.children;
+        childCount = children.length;
+        names = item.names;
+        nameCount = names.length;
+        elementTitle = '';
+
+        for (nameIndex = 0; nameIndex < nameCount; nameIndex++) {
+            elementTitle += names[nameIndex] + ', ';
+        }
+
+        childrenElementId = elementPrefix + 'Children' + itemIndex;
+               
+        itemElement = document.createElement('div');
+        itemElement.id = elementPrefix + 'Info' + itemIndex;
+        itemElement.style.display = 'block';
+               
+        titleElement = document.createElement('a');
+        titleElement.setAttribute('class', titleClass)
+        titleElement.innerHTML = elementTitle.substring(0, elementTitle.length - 2);
+        this.assignItemOnClick(titleElement, childrenElementId);
+        itemElement.appendChild(titleElement);
+
+        if (childCount > 0) {
+            itemElement.appendChild(document.createTextNode(' ('));
+
+            titleElement = document.createElement('span');
+            titleElement.setAttribute('class', childrenCountClass)
+            titleElement.innerHTML = childCount;
+            itemElement.appendChild(titleElement);
+
+            itemElement.appendChild(document.createTextNode(')'));
+        }
+               
+        childrenElement = document.createElement('div');
+        childrenElement.id = childrenElementId;
+        childrenElement.style.display = 'none';
+        childrenElement.style.marginLeft = '20px';
+                                    
+        for (childIndex = 0; childIndex < childCount; childIndex++) {
+            items.push(children[childIndex]);
+            elements.push(childrenElement);
+        }
+
+        itemElement.appendChild(childrenElement);
+        element.appendChild(itemElement);
+
+        itemIndex++;
+    }
+
+    if (hierarchy.length > 0) {
+        document.getElementById(elementPrefix + 'Children0').style.display = 'block';
+    }
 }
+
+/**
+ * Prototype for all TreeControl objects.
+ */
+TreeControl.prototype = {
+    /**
+     * Assigns an onClick handler to the HTML element representing an item in the hierarchy.
+     * 
+     * @param element Element to assign the onClick handler to.
+     * @param childrenElementId ID of the element containing all children of the item.
+     */
+    assignItemOnClick: function (element, childrenElementId) {
+        element.onclick = function () {
+            var children = document.getElementById(childrenElementId);
+                  
+            children.style.display = (children.style.display === 'none') ? 'block' : 'none';
+        };
+    }
+};

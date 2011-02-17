@@ -1,166 +1,138 @@
-#classifyBtn
-{ 
+#classifyBtn {
    width: 100%; 
    margin: 10px 0 0 0;
 }
 
-#content
-{ 
+#content {
    padding: 10px 0 0 20px;
    width: 780px;
 }
 
-#footer
-{
+#footer {
    color: #999999;
    font-size: 9pt;
-   width: 800px;
    padding: 5px 0;
    text-align: right;
+   width: 800px;
 }
 
-#header
-{
+#header {
    padding-bottom: 5px;
 }
 
-#ontologyText
-{ 
+#ontologyText {
    width: 100%; 
 }
 
-#queryBtn
-{ 
+#queryBtn {
    width: 100px;
 }
 
-#queryResults h4
-{
+#queryResults h4 {
     display: inline;
     font-size: 12pt;
 }
 
-#queryResults table
-{
+#queryResults table {
     border-spacing: 0;
     border-width: 1px 1px 0 0;
     border-color: #CCCCCC;
     border-style: solid;
 }
 
-#queryResults th, #queryResults td
-{
+#queryResults th, #queryResults td {
     border-style: solid;
     border-width: 0 0 1px 1px;
     border-color: #CCCCCC;
     padding: 2px 10px 2px 10px;
 }
 
-#queryResults tr td
-{
+#queryResults tr td {
     background-color: #F0F0F0;
 }
 
-#queryResults tr th
-{
+#queryResults tr th {
     background-color: #DDDDDD;
     font-weight: bold;
     text-align: center;
 }
 
-#queryText
-{ 
+#queryText {
    width: 780px;
 }
 
-#sampleOntologies
-{ 
-   display: block; 
-   margin-bottom: 10px 
+#sampleOntologies {
+   display: block;
+   margin-bottom: 10px;
 }
 
-#statsBox, #classesBox, #sparqlBox
-{ 
-   display: none; 
-}
-
-#tabs
-{ 
-   list-style: none; 
-   padding: 0; 
+#tabs {
+   list-style: none;
    margin: 0;
+   padding: 0;
 }
 
-#tabs li
-{
+#tabs li {
    float: left;
    margin: 0 0.4em 0 0;
 }
 
-#tabs li a
-{
-   background-color: #F0F0F0;
-   height: 1.5em;
-   line-height: 1.5em;
-   float: left;
-   width: 7em;
-   display: block;
-   border-width: 1px 1px 0 1px;
-   border-style: solid;
-   border-color: #dcdce9;
-   color: #333333;
-   text-decoration: none;
-   text-align: center;
-   font-size: 11pt;
+#tabs li a {
+    background-color: #F0F0F0;
+    border-color: #dcdce9;
+    border-style: solid;
+    border-width: 1px 1px 0 1px;
+    color: #333333;
+    display: block;
+    float: left;
+    font-size: 11pt;
+    height: 1.5em;
+    line-height: 1.5em;
+    padding: 0 15px;
+    text-align: center;
+    text-decoration: none;
 }
 
-#tabs li.active a
-{
+#tabs li.active a {
    background-color: #CCCCCC;
    color: #333333;
    font-weight: bold;
 }
 
-#tabs li.disabled a
-{
+#tabs li.disabled a {
    background-color: #F0F0F0;
    color: #CCCCCC;
    cursor: default;
 }
 
-.classLink
-{
+
+.classChildrenCount {
+    color: #990000;
+}
+
+.classLink {
    cursor: pointer;
    text-decoration: underline;
 }
 
-.classSubsumers
-{
-   margin-left: 10px;
-}
-
-.clear 
-{
+.clear {
    clear: both;
 }
 
-.tabBox
-{
-   width: 100%;
-   padding: 10px;
+.tabBox {
    border: 1px solid #dcdce9;
+   padding: 10px;
+   width: 100%;
 }
 
-body
-{
+a {
+   color: #666666;
+}
+
+body {
    background: #fff url(images/logoleft.gif) no-repeat 6px 44px;
    color: #666666;
    font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
    font-size: 10pt;
    margin: 0 60px 0 44px;
-}
-
-a
-{
-   color: #666666;
 }

@@ -16,6 +16,7 @@
                 <li id="ontologyTab" class="active"><a href="ontology.html" onclick="return false;">Ontology</a></li>
                 <li id="statsTab" class="disabled"><a href="stats.html" onclick="return false;">Stats</a></li>
                 <li id="classesTab" class="disabled"><a href="classes.html" onclick="return false;">Classes</a></li>
+                <li id="opropTab" class="disabled"><a href="objectProperties.html" onclick="return false;">Object Properties</a></li>
                 <li id="sparqlTab" class="disabled"><a href="sparql.html" onclick="return false;">SPARQL</a></li>
             </ul>
             <div class="clear" />
@@ -37,6 +38,8 @@
 	            Object property subsumption took: <span id="opropSubsumptionTime">[not processed yet]</span><br />
 	            Classification took: <span id="classificationTime">[not processed yet]</span><br />
 	            ABox rewriting took: <span id="aBoxRewritingTime">[not processed yet]</span><br />
+	            Building class hierarchy took: <span id="classHierarchyTime">[not processed yet]</span><br />
+	            Building object property hierarchy took: <span id="opropHierarchyTime">[not processed yet]</span><br />
                 Total time: <span id="totalTime">[not processed yet]</span><br /><br />
             
 	            Number of classes in the ontology: <span id="classCount">[not processed yet]</span><br />
@@ -52,6 +55,10 @@
                 Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="showMatchingClasses();"/><br />
                 <div id="classHierarchy"></div>
             </div>
+            <div id="opropBox" class="tabBox">
+                Object Property: <input type="text" id="opropSearch" placeholder="Start typing here." onkeyup="showMatchingOprops();"/><br />
+                <div id="opropHierarchy"></div>
+            </div>
             <div id="sparqlBox" class="tabBox">
 	            SPARQL query:
                 <textarea id="queryText" cols="40" rows="10" placeholder="Please input your SPARQL query here."></textarea>
@@ -63,8 +70,8 @@
         </div>
 
         <script src="query-min.js" type="text/javascript"></script>
-        <script src="jsw-min.js" type="text/javascript"></script>
-        <script src="util-min.js" type="text/javascript"></script>
+        <script src="jsw.js" type="text/javascript"></script>
+        <script src="util.js" type="text/javascript"></script>
         <script type="text/javascript">
             // Holds reference to the reasoner after some ontology is classified.
             var reasoner, tabControl;
@@ -123,6 +130,10 @@
                     reasoner.timeInfo.classification;
                 document.getElementById('aBoxRewritingTime').innerHTML = 
                     reasoner.timeInfo.aBoxRewriting;
+                document.getElementById('classHierarchyTime').innerHTML = 
+                    reasoner.timeInfo.classHierarchy;
+                document.getElementById('opropHierarchyTime').innerHTML = 
+                    reasoner.timeInfo.objectPropertyHierarchy;
                 document.getElementById('totalTime').innerHTML = totalTime;
             
                 document.getElementById('classCount').innerHTML = ontology.getClassCount();
@@ -136,71 +147,22 @@
                 tabControl.setEnabled('statsTab', true);
             }
         
-            /**
-             * Assigns an onClick handler to the HTML element representing some class in the
-             * ontology.
-             * 
-             * @param element Element to assign the onClick handler to.
-             * @param subsumersId ID of the element containing all subsumsers of the class
-             * represented by the element.
-             */
-            function assignClassOnClick(element, subsumersId) {
-                element.onclick = function() {
-                    var subsumers = document.getElementById(subsumersId);
-                  
-                    subsumers.style.display = 
-                        (subsumers.style.display == "none") ? "block" : "none";
-                };
-            }
-        
-            /**
-             * Prepares the Classes tab for display after the ontology has been processed. Builds
-             * a subsumption tree (kind of).
-             *
-             * @param ontology Ontology object representing the ontology processed.
-             */
+            /** Prepares the Classes tab for display after the ontology has been processed. */
             function prepareClassesTab(ontology) {
-                var classes, classCount, classElement, classIndex, className, classSubsumers, 
-                    classSubsumersId, classSubsumerCount, subsumersElement, subsumerIndex, 
-                    titleElement;
+                new TreeControl(reasoner.classHierarchy, 'classHierarchy', 'class', 'classLink',
+                    'classChildrenCount'); 
 
-                classes = objectPropertiesToArray(ontology.getClasses()),
-                classCount = classes.length;
-                subsumers = reasoner.classSubsumers;
-                root = document.getElementById('classHierarchy');
-            
-                for (classIndex = 0; classIndex < classCount; classIndex++) {
-                    className = classes[classIndex];
-                    classSubsumersId = 'classSubsumers' + classIndex;
-               
-                    classElement = document.createElement('div');
-                    classElement.id = 'classInfo' + classIndex;
-                    classElement.style.display = "block";
-               
-                    titleElement = document.createElement('a');
-                    titleElement.setAttribute('class', 'classLink')
-                    titleElement.innerHTML = className;
-                    assignClassOnClick(titleElement, classSubsumersId);
-                    classElement.appendChild(titleElement);
-               
-                    subsumersElement = document.createElement('div');
-                    subsumersElement.id = classSubsumersId;
-                    subsumersElement.className = 'classSubsumers';
-                    subsumersElement.style.display = 'none';
-               
-                    classSubsumers = objectPropertiesToArray(subsumers.get(className));
-                    classSubsumerCount = classSubsumers.length;
-               
-                    for (subsumerIndex = 0; subsumerIndex < classSubsumerCount; subsumerIndex++) {
-                        subsumersElement.innerHTML += classSubsumers[subsumerIndex] + '<br />';
-                    }
-               
-                    classElement.appendChild(subsumersElement);
-               
-                    root.appendChild(classElement);
-                }
-            
                 tabControl.setEnabled('classesTab', true);
+            }
+
+            /**
+             * Prepares the Object Properties tab for display after the ontology has been processed.
+             */
+            function prepareOpropTab(ontology) {
+                new TreeControl(reasoner.objectPropertyHierarchy, 'opropHierarchy', 'oprop',
+                    'classLink', 'classChildrenCount'); 
+
+                tabControl.setEnabled('opropTab', true);
             }
 
             /**
@@ -234,7 +196,8 @@
               
                     prepareOntologyTab();
                     prepareStatsTab(ontology, parsingTime, totalTime);
-                    prepareClassesTab(ontology);
+                    prepareClassesTab();
+                    prepareOpropTab();
                     prepareSparqlTab();
                
                     tabControl.select('statsTab');
@@ -354,6 +317,7 @@
 	                {tabId: 'ontologyTab', boxId: 'ontologyBox', enabled: true },
                     {tabId: 'statsTab',    boxId: 'statsBox',    enabled: false},
                     {tabId: 'classesTab',  boxId: 'classesBox',  enabled: false},
+                    {tabId: 'opropTab',    boxId: 'opropBox',    enabled: false},
                     {tabId: 'sparqlTab',   boxId: 'sparqlBox',   enabled: false}
                 ], {
                     active: 'active',
