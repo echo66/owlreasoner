@@ -453,6 +453,7 @@ jsw.owl.xml = {
 
 
 
+
          * @param element OWL/XML Prefix element.
          */
         function parsePrefixDefinition(element) {
@@ -3506,9 +3507,8 @@ jsw.util.PairStorage.prototype = {
      * @returns Object representing the hierarchy implied by the relation.
      */
     buildHierarchy: function (allowedObjects) {
-        var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren,
-            equivalents, equivalentCount, equivalentIndex, hierarchy, name, names, newObj, node,
-            nodeChildren, stack, topNode, self, hasParents, parent, parents;
+        var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren, hierarchy, newObj,
+            nodeChildren, stack, self, hasParents, parent, parents;
 
         /**
          * Inserts the given object into the DAG.
@@ -3613,9 +3613,9 @@ jsw.util.PairStorage.prototype = {
             var nameA = objA.names[0], nameB = objB.names[0];
 
             if (nameA < nameB) {
-                return 1;
-            } else if (nameA > nameB) {
                 return -1;
+            } else if (nameA > nameB) {
+                return 1;
             } else {
                 return 0;
             }
@@ -3629,7 +3629,7 @@ jsw.util.PairStorage.prototype = {
          * @returns Object to be later inserted into the hierarchy generated.
          */
         function createHierarchyObj(name) {
-            var equivalents, equivalentCount, equivalentIndex, names, newObj;
+            var equivalents, equivalentCount, equivalentIndex, names;
             
             names = [name];
             equivalents = objInfo[name].equivalents;

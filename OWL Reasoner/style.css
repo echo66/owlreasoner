@@ -119,6 +119,10 @@
    clear: both;
 }
 
+.highlightText {
+    background-color: yellow;
+}
+
 .tabBox {
    border: 1px solid #dcdce9;
    padding: 10px;

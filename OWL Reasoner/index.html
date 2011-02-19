@@ -52,11 +52,11 @@
 	            Total axioms: <span id="axiomCount">[not processed yet]</span><br />
             </div>
             <div id="classesBox" class="tabBox">
-                Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="showMatchingClasses();"/><br />
+                Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="classTree.showMatches(this.value);"/><br /><br />
                 <div id="classHierarchy"></div>
             </div>
             <div id="opropBox" class="tabBox">
-                Object Property: <input type="text" id="opropSearch" placeholder="Start typing here." onkeyup="showMatchingOprops();"/><br />
+                Object Property: <input type="text" id="opropSearch" placeholder="Start typing here." onkeyup="opropTree.showMatches(this.value);"/><br /><br />
                 <div id="opropHierarchy"></div>
             </div>
             <div id="sparqlBox" class="tabBox">
@@ -74,7 +74,7 @@
         <script src="util.js" type="text/javascript"></script>
         <script type="text/javascript">
             // Holds reference to the reasoner after some ontology is classified.
-            var reasoner, tabControl;
+            var reasoner, tabControl, classTree, opropTree;
         
             /**
              * Shows the given error message in the browser.
@@ -149,36 +149,40 @@
         
             /** Prepares the Classes tab for display after the ontology has been processed. */
             function prepareClassesTab(ontology) {
-                new TreeControl(reasoner.classHierarchy, 'classHierarchy', 'class', 'classLink',
-                    'classChildrenCount'); 
+                var hierarchy = reasoner.classHierarchy;
 
-                tabControl.setEnabled('classesTab', true);
+                if (hierarchy.length > 0) {
+                    classTree = new TreeControl(hierarchy, 'classHierarchy', 'classLink',
+                        'classChildrenCount', 'highlightText'); 
+
+                    tabControl.setEnabled('classesTab', true);
+                }
             }
 
             /**
              * Prepares the Object Properties tab for display after the ontology has been processed.
              */
             function prepareOpropTab(ontology) {
-                new TreeControl(reasoner.objectPropertyHierarchy, 'opropHierarchy', 'oprop',
-                    'classLink', 'classChildrenCount'); 
+                var hierarchy = reasoner.objectPropertyHierarchy;
 
-                tabControl.setEnabled('opropTab', true);
+                if (hierarchy.length > 0) {
+                    opropTree = new TreeControl(hierarchy, 'opropHierarchy', 'classLink',
+                        'classChildrenCount', 'highlightText');
+
+                    tabControl.setEnabled('opropTab', true);
+                }
             }
 
-            /**
-             * Prepare SPARQL tab for display after the ontology has been processed.
-             */        
+            /** Prepare SPARQL tab for display after the ontology has been processed. */        
             function prepareSparqlTab(ontology) {
                 tabControl.setEnabled('sparqlTab', true);
             }
         
-           /**
-            * Parses the ontology from the given OWL/XML and builds a reasoner object for it.
-            */ 
+           /** Parses the ontology from the given OWL/XML and builds a reasoner object for it. */ 
             function classifyBtnClicked() {
                 var clock, classificationTime, ontology, owlXml, totalClock, totalTime;
 
-//                try {
+                try {
                     owlXml = document.getElementById('ontologyText').value;
               
                     totalClock = new jsw.util.Stopwatch();
@@ -201,14 +205,12 @@
                     prepareSparqlTab();
                
                     tabControl.select('statsTab');
-//               } catch (ex) {
-//                    handleError(ex);
-//               }
+               } catch (ex) {
+                    handleError(ex);
+               }
             }
         
-           /**
-            * Processes the query from the given string and outputs the result.
-            */
+           /** Processes the query from the given string and outputs the result. */
             function queryBtnClicked() {
                 var column, doc, html, query, queryResults, queryTxt, result, row, rowCount,
                     rowIndex, stopwatch, time;
@@ -293,25 +295,11 @@
              * Makes sure that only the classes with the names which (partially) match the text in 
              * the input box are displayed.
              */
-            function showMatchingClasses() {
-                var classElement, occurenceIndex, text, titleElement;                
-
-                text = document.getElementById('classSearch').value;
-                classElement = document.getElementById('classHierarchy').firstChild;
-            
-                while (classElement) {               
-                    titleElement = classElement.firstChild;
-                    occurenceIndex = titleElement.innerHTML.indexOf(text);
-               
-                    classElement.style.display = 
-                        (text == '' || occurenceIndex >= 0) ? "block" : "none";
-                    classElement = classElement.nextSibling;
-                }
+            function showMatchingClasses() {            
+                classTree.showMatches(document.getElementById('classSearch').value);
             }
          
-            /**
-             * Initializes the page when it is loaded.
-             */
+            /** Initializes the page when it is loaded. */
             function init() {
                 tabControl = new TabControl([
 	                {tabId: 'ontologyTab', boxId: 'ontologyBox', enabled: true },

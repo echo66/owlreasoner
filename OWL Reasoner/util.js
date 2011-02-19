@@ -14,9 +14,7 @@ function TextFile(url) {
     this.url = url;
 }
 
-/**
- * Prototype for all TextFile objects.
- */
+/** Prototype for all TextFile objects. */
 TextFile.prototype = {
     /**
      * Returns the content of the file as text.
@@ -53,9 +51,7 @@ TextFile.prototype = {
 function TabControl(tabs, classNames) {
     var firstEnabled, tab, tabCount, tabIndex;
 
-    /**
-     * Collection of objects representing each tab.
-     */
+    /** Collection of objects representing each tab. */
     this.tabs = tabs;
     
     /**
@@ -89,9 +85,7 @@ function TabControl(tabs, classNames) {
     }
 }
 
-/**
- * Prototype for all TabControl objects.
- */
+/** Prototype for all TabControl objects. */
 TabControl.prototype = {
     /**
      * Returns an object representing the tab with the given id in the tabs collection.
@@ -105,7 +99,7 @@ TabControl.prototype = {
             tabIndex;
          
 	    for (tabIndex = 0; tabIndex < tabCount; tabIndex++) {
-	        if (tabs[tabIndex].tabId == id) {
+	        if (tabs[tabIndex].tabId === id) {
                 return tabs[tabIndex];
             }
 	    }
@@ -177,7 +171,7 @@ TabControl.prototype = {
         if (!enabled) {
 	        document.getElementById(tab.tabId).className = this.classNames.disabled;
          
-            if (this.selected && this.selected.tabId == id) {
+            if (this.selected && this.selected.tabId === id) {
                 document.getElementById(tab.boxId).style.display = "none";
             
 	            firstEnabled = this.findFirstEnabled();
@@ -231,32 +225,37 @@ TabControl.prototype = {
  *
  * @param hierarchy Array representing the hierarchy to show.
  * @param hostId ID of the HTML element to host the hierarchy.
- * @param elementPrefix Prefix of IDs for generated HTML elements.
  * @param titleClass Name of the CSS class to use for displaying item titles.
  * @param childrenCountClass Name of the CSS class to use for displaying the number of children of 
  * the class.
+ * @param highlightClass Name of the CSS class to use for highlighting parts of names matched during
+ * search.
  */
-function TreeControl(hierarchy, hostId, elementPrefix, titleClass, childrenCountClass) {
-    var children, childrenElement, childrenElementId, childCount, childIndex, element, elements,
-        elementTitle, item, items, itemIndex, itemElement, hostElement, names, nameCount, 
-        titleElement;
+function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highlightClass) {
+    var children, childrenElement, childCount, childIndex, element, elements, elementTitle, item,
+        items, itemIndex, itemElement, names, nameCount, nameIndex, rootElement, titleElement;
 
-    hostElement = document.getElementById(hostId);
-    elements = [];
-    items = [];
+    this.hierarchy = hierarchy;
+    this.hostId = hostId;
+    this.highlightClass = highlightClass;
+
+    rootElement = document.createElement('div');
+
+    elements = new jsw.util.Queue();
+    items = new jsw.util.Queue();
 
     childCount = hierarchy.length;
 
     for (childIndex = 0; childIndex < childCount; childIndex++) {
-        items.push(hierarchy[childIndex]);
-        elements.push(hostElement);
+        items.enqueue(hierarchy[childIndex]);
+        elements.enqueue(rootElement);
     }
 
     itemIndex = 0;
 
-    while (items.length > 0) {
-        item = items.pop();
-        element = elements.pop();
+    while (!items.isEmpty()) {
+        item = items.dequeue();
+        element = elements.dequeue();
 
         children = item.children;
         childCount = children.length;
@@ -267,54 +266,47 @@ function TreeControl(hierarchy, hostId, elementPrefix, titleClass, childrenCount
         for (nameIndex = 0; nameIndex < nameCount; nameIndex++) {
             elementTitle += names[nameIndex] + ', ';
         }
-
-        childrenElementId = elementPrefix + 'Children' + itemIndex;
                
         itemElement = document.createElement('div');
-        itemElement.id = elementPrefix + 'Info' + itemIndex;
         itemElement.style.display = 'block';
                
         titleElement = document.createElement('a');
-        titleElement.setAttribute('class', titleClass)
+        titleElement.setAttribute('class', titleClass);
         titleElement.innerHTML = elementTitle.substring(0, elementTitle.length - 2);
-        this.assignItemOnClick(titleElement, childrenElementId);
-        itemElement.appendChild(titleElement);
+        itemElement.appendChild(titleElement);        
 
         if (childCount > 0) {
+            this.assignItemOnClick(itemElement);
             itemElement.appendChild(document.createTextNode(' ('));
 
             titleElement = document.createElement('span');
-            titleElement.setAttribute('class', childrenCountClass)
+            titleElement.setAttribute('class', childrenCountClass);
             titleElement.innerHTML = childCount;
             itemElement.appendChild(titleElement);
 
             itemElement.appendChild(document.createTextNode(')'));
-        }
-               
-        childrenElement = document.createElement('div');
-        childrenElement.id = childrenElementId;
-        childrenElement.style.display = 'none';
-        childrenElement.style.marginLeft = '20px';
+
+            childrenElement = document.createElement('div');
+            childrenElement.style.display = 'none';
+            childrenElement.style.marginLeft = '20px';
                                     
-        for (childIndex = 0; childIndex < childCount; childIndex++) {
-            items.push(children[childIndex]);
-            elements.push(childrenElement);
+            for (childIndex = 0; childIndex < childCount; childIndex++) {
+                items.enqueue(children[childIndex]);
+                elements.enqueue(childrenElement);
+            }
+
+            itemElement.appendChild(childrenElement);
         }
 
-        itemElement.appendChild(childrenElement);
         element.appendChild(itemElement);
-
         itemIndex++;
     }
 
-    if (hierarchy.length > 0) {
-        document.getElementById(elementPrefix + 'Children0').style.display = 'block';
-    }
+    this.showFirstLevel(rootElement);
+    document.getElementById(hostId).appendChild(rootElement);
 }
 
-/**
- * Prototype for all TreeControl objects.
- */
+/** Prototype for all TreeControl objects. */
 TreeControl.prototype = {
     /**
      * Assigns an onClick handler to the HTML element representing an item in the hierarchy.
@@ -322,11 +314,151 @@ TreeControl.prototype = {
      * @param element Element to assign the onClick handler to.
      * @param childrenElementId ID of the element containing all children of the item.
      */
-    assignItemOnClick: function (element, childrenElementId) {
-        element.onclick = function () {
-            var children = document.getElementById(childrenElementId);
-                  
-            children.style.display = (children.style.display === 'none') ? 'block' : 'none';
+    assignItemOnClick: function (element) {
+        element.firstChild.onclick = function () {
+            var child, children, totalCount, visibleCount;
+
+            children = element.lastChild;
+            child = children.firstChild;
+            totalCount = 0;
+            visibleCount = 0;
+
+            while (child !== null) {
+                if (child.style.display !== 'none') {
+                    visibleCount++;
+                }
+
+                child.style.display = 'block';
+                child = child.nextSibling;
+                totalCount++;
+            }
+
+            children.style.display =
+                (visibleCount < totalCount || children.style.display === 'none') ? 'block' : 'none';
         };
+    },
+
+    /**
+     * Shows all nodes with the names (partially) matching the given string.
+     *
+     * @param str Substring to search the node names for.
+     */
+    showMatches: function (str) {
+        var children, childElement, element, elements, searchForExpr, hierarchy, highlightClass,
+            hostElement, hostId, innerHtml, item, items, itemCount, itemIndex, names, nameCount,
+            nameIndex, matchFound, parentElement, replaceExpr, rootElement;
+        
+        /** 
+         * Function to be used in string.replace() method when trying to match node names against
+         * the given string.
+         * 
+         * @param a
+         * @param b Text matched.
+         * @returns String to replace the matched text with.
+         */
+        function replaceFunc(a, b) {
+            matchFound = true;
+            return (replaceExpr) ? replaceExpr + b + '</span>' : b;
+        }
+
+        hierarchy = this.hierarchy;
+        itemCount = hierarchy.length;
+        hostId = this.hostId;
+        hostElement = document.getElementById(hostId);
+        rootElement = hostElement.removeChild(hostElement.firstChild);
+        element = rootElement.firstChild;
+        items = new jsw.util.Queue();
+        elements = new jsw.util.Queue();
+
+        for (itemIndex = 0; itemIndex < itemCount; itemIndex++) {
+            items.enqueue(hierarchy[itemIndex]);
+            elements.enqueue(element);
+            element = element.nextSibling;
+        }
+
+        searchForExpr = new RegExp('(' + str + ')');
+        highlightClass = this.highlightClass;
+        replaceExpr = (highlightClass) ? '<span class="' + highlightClass + '">' : '';
+
+        while (!items.isEmpty()) {
+            item = items.dequeue();
+            element = elements.dequeue();
+
+            children = item.children;
+            itemCount = children.length;
+        
+            if (itemCount > 0) {
+                childElement = element.lastChild.firstChild;
+            
+                for (itemIndex = 0; itemIndex < itemCount; itemIndex++) {
+                    items.enqueue(children[itemIndex]);
+                    elements.enqueue(childElement);
+                    childElement = childElement.nextSibling;
+                }
+            }
+
+            names = item.names;
+            nameCount = names.length;
+            matchFound = false;
+            innerHtml = '';
+    
+            if (str === '' || replaceExpr === '') {
+                for (nameIndex = 0; nameIndex < nameCount; nameIndex++) {
+                    innerHtml += names[nameIndex] + ', ';
+                }
+            } else {
+                for (nameIndex = 0; nameIndex < nameCount; nameIndex++) {
+                    innerHtml += names[nameIndex].replace(searchForExpr, replaceFunc) + ', ';
+                }
+            }
+
+            element.firstChild.innerHTML = innerHtml.substring(0, innerHtml.length - 2);
+
+            if (str === '') {
+                element.style.display = 'block';
+                
+                if (itemCount > 0) {
+                    element.lastChild.style.display = 'none';
+                }
+            } else if (matchFound) {
+                parentElement = element;
+
+                do {
+                    parentElement.style.display = 'block';
+                    parentElement.lastChild.style.display = 'block';
+                    parentElement = parentElement.parentNode;
+                } while (parentElement.parentNode !== null);
+            } else {
+                element.style.display = 'none';
+            }
+        }
+
+        if (str === '') {
+            this.showFirstLevel(rootElement);
+        }
+
+        hostElement.appendChild(rootElement);
+    },
+
+    /** 
+     * Shows the first level of the tree as expanded.
+     *
+     * @param rootElement Element containing all the tree nodes.
+     */
+    showFirstLevel: function (rootElement) {
+        var element, childrenElement;
+
+        element = rootElement.firstChild;
+
+        while (element !== null) {
+            element.style.display = 'block';
+
+            if (element.childNodes.length > 1) {
+                childrenElement = element.lastChild;
+                childrenElement.style.display = 'block';
+            }
+
+            element = element.nextSibling;
+        }
     }
 };
