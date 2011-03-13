@@ -1,31 +1,31 @@
 #classifyBtn {
-   width: 100%; 
-   margin: 10px 0 0 0;
+    width: 100%; 
+    margin: 10px 0 0 0;
 }
 
 #content {
-   padding: 10px 0 0 20px;
-   width: 780px;
+    padding: 10px 0 0 20px;
+    width: 780px;
 }
 
 #footer {
-   color: #999999;
-   font-size: 9pt;
-   padding: 5px 0;
-   text-align: right;
-   width: 800px;
+    color: #999999;
+    font-size: 9pt;
+    padding: 5px 0;
+    text-align: right;
+    width: 800px;
 }
 
 #header {
-   padding-bottom: 5px;
+    padding-bottom: 5px;
 }
 
 #ontologyText {
-   width: 100%; 
+    width: 100%; 
 }
 
 #queryBtn {
-   width: 100px;
+    width: 100px;
 }
 
 #queryResults h4 {
@@ -58,23 +58,23 @@
 }
 
 #queryText {
-   width: 780px;
+    width: 780px;
 }
 
 #sampleOntologies {
-   display: block;
-   margin-bottom: 10px;
+    display: block;
+    margin-bottom: 10px;
 }
 
 #tabs {
-   list-style: none;
-   margin: 0;
-   padding: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 #tabs li {
-   float: left;
-   margin: 0 0.4em 0 0;
+    float: left;
+    margin: 0 0.4em 0 0;
 }
 
 #tabs li a {
@@ -94,15 +94,15 @@
 }
 
 #tabs li.active a {
-   background-color: #CCCCCC;
-   color: #333333;
-   font-weight: bold;
+    background-color: #CCCCCC;
+    color: #333333;
+    font-weight: bold;
 }
 
 #tabs li.disabled a {
-   background-color: #F0F0F0;
-   color: #CCCCCC;
-   cursor: default;
+    background-color: #F0F0F0;
+    color: #CCCCCC;
+    cursor: default;
 }
 
 
@@ -111,32 +111,37 @@
 }
 
 .classLink {
-   cursor: pointer;
-   text-decoration: underline;
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 .clear {
-   clear: both;
+    clear: both;
 }
 
 .highlightText {
     background-color: yellow;
 }
 
+.special {
+    font-weight: bold;
+}
+
 .tabBox {
-   border: 1px solid #dcdce9;
-   padding: 10px;
-   width: 100%;
+    border: 1px solid #dcdce9;
+    display: none;
+    padding: 10px;
+    width: 100%;
 }
 
 a {
-   color: #666666;
+    color: #666666;
 }
 
 body {
-   background: #fff url(images/logoleft.gif) no-repeat 6px 44px;
-   color: #666666;
-   font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
-   font-size: 10pt;
-   margin: 0 60px 0 44px;
+    background: #fff url(images/logoleft.gif) no-repeat 6px 44px;
+    color: #666666;
+    font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    margin: 0 60px 0 44px;
 }

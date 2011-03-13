@@ -1,0 +1,398 @@
+<?xml version="1.0"?>
+<Ontology xmlns="http://www.w3.org/2002/07/owl#" 
+    xml:base="http://soba.cs.man.ac.uk/~stepanv7/project/tests/subsumption/lat.owx#">
+    <Declaration>
+        <ObjectProperty IRI="gives"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="leads"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="supervises"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="takes"/>
+    </Declaration>
+    <EquivalentClasses>
+        <Class IRI="GradStudent"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Student"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="enrolled-in"/>
+                <Class IRI="GradSchool"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="Internship"/>
+        <Class IRI="StudHilfkraft"/>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="Professor"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Person"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="gives"/>
+                <Class IRI="Lecture"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="leads"/>
+                <Class IRI="Project"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="position"/>
+                <Class IRI="Professorship"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="supervises"/>
+                <Class IRI="GradStudent"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="ResearchAssistant"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Person"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="position"/>
+                <Class IRI="ResearchAssistantship"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="ResearchFellow"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Person"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="position"/>
+                <Class IRI="ResearchFellowship"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="project"/>
+                <Class IRI="Project"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="Student"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Person"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="registered-at"/>
+                <Class IRI="University"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="student-id"/>
+                <Class IRI="ID"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="StudentAssistant"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Student"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="position"/>
+                <Class IRI="ResearchAssistantship"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="UngradStudent"/>
+        <ObjectIntersectionOf>
+            <Class IRI="Student"/>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="enrolled-in"/>
+                <Class IRI="UngradSchool"/>
+            </ObjectSomeValuesFrom>
+            <ObjectSomeValuesFrom>
+                <ObjectProperty IRI="takes"/>
+                <Class IRI="Lecture"/>
+            </ObjectSomeValuesFrom>
+        </ObjectIntersectionOf>
+    </EquivalentClasses>
+    <SubClassOf>
+        <Class IRI="Professorship"/>
+        <Class IRI="Position"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="ResearchAssistantship"/>
+        <Class IRI="Position"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="ResearchFellowship"/>
+        <Class IRI="Position"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="StudHilfkraft"/>
+        <Class IRI="ResearchAssistantship"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="WissHilfkraft"/>
+        <Class IRI="ResearchAssistantship"/>
+    </SubClassOf>
+    <DisjointClasses>
+        <Class IRI="GradStudent"/>
+        <Class IRI="UngradStudent"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="Professor"/>
+        <Class IRI="ResearchFellow"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="Professor"/>
+        <Class IRI="Student"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="Professorship"/>
+        <Class IRI="ResearchFellowship"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="Professorship"/>
+        <Class IRI="StudHilfkraft"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="Professorship"/>
+        <Class IRI="WissHilfkraft"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="ResearchFellow"/>
+        <Class IRI="Student"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="ResearchFellowship"/>
+        <Class IRI="StudHilfkraft"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="ResearchFellowship"/>
+        <Class IRI="WissHilfkraft"/>
+    </DisjointClasses>
+    <DisjointClasses>
+        <Class IRI="StudHilfkraft"/>
+        <Class IRI="WissHilfkraft"/>
+    </DisjointClasses>
+    <ClassAssertion>
+        <Class IRI="UngradStudent"/>
+        <NamedIndividual IRI="Adila"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Anni"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Barbara"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Baris"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="UngradSchool"/>
+        <NamedIndividual IRI="CL"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Carsten"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="GradStudent"/>
+        <NamedIndividual IRI="Felix"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="Professor"/>
+        <NamedIndividual IRI="Franz"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="UngradStudent"/>
+        <NamedIndividual IRI="Huang"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Jan"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="Internship"/>
+        <NamedIndividual IRI="LATHIWIPos"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellow"/>
+        <NamedIndividual IRI="Liu"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="GradStudent"/>
+        <NamedIndividual IRI="Maja"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="GradStudent"/>
+        <NamedIndividual IRI="Meng"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="ResearchFellowship"/>
+        <NamedIndividual IRI="ResearchPositiononPolytimeDL"/>
+    </ClassAssertion>
+    <ClassAssertion>
+        <Class IRI="University"/>
+        <NamedIndividual IRI="TUD"/>
+    </ClassAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="gives"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="DLTutorial"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="project"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="TONES"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="project"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="PolytimeDL"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="project"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="DLAction"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Liu"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Julia"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Adila"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Meng"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Maja"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Carsten"/>
+        <NamedIndividual IRI="Yusri"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="gives"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="DLLecture"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="leads"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="DLAction"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="leads"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="TONES"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="leads"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="PolytimeDL"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Jan"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Baris"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Liu"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Felix"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Julia"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Meng"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Franz"/>
+        <NamedIndividual IRI="Maja"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="enrolled-in"/>
+        <NamedIndividual IRI="Julia"/>
+        <NamedIndividual IRI="CL"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="takes"/>
+        <NamedIndividual IRI="Julia"/>
+        <NamedIndividual IRI="DLLecture"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="takes"/>
+        <NamedIndividual IRI="Julia"/>
+        <NamedIndividual IRI="DLTutorial"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="position"/>
+        <NamedIndividual IRI="Meng"/>
+        <NamedIndividual IRI="ResearchPositiononPolytimeDL"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="project"/>
+        <NamedIndividual IRI="Meng"/>
+        <NamedIndividual IRI="PolytimeDL"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="supervises"/>
+        <NamedIndividual IRI="Meng"/>
+        <NamedIndividual IRI="Huang"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty IRI="position"/>
+        <NamedIndividual IRI="Yusri"/>
+        <NamedIndividual IRI="LATHIWIPos"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="leads"/>
+        <Class IRI="Professor"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="gives"/>
+        <Class IRI="Lecture"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="leads"/>
+        <Class IRI="Project"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="supervises"/>
+        <Class IRI="Student"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="takes"/>
+        <Class IRI="Lecture"/>
+    </ObjectPropertyRange>
+</Ontology>

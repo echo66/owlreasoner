@@ -8,9 +8,7 @@ function TextFile(url) {
         throw 'URL of the file is not specified!';
     }
    
-    /**
-     * URL of the file.
-     */
+    /** URL of the file. */
     this.url = url;
 }
 
@@ -225,21 +223,25 @@ TabControl.prototype = {
  *
  * @param hierarchy Array representing the hierarchy to show.
  * @param hostId ID of the HTML element to host the hierarchy.
- * @param titleClass Name of the CSS class to use for displaying item titles.
- * @param childrenCountClass Name of the CSS class to use for displaying the number of children of 
- * the class.
- * @param highlightClass Name of the CSS class to use for highlighting parts of names matched during
- * search.
+ * @param options Object containing information how the nodes of the tree will be displayed. The
+ * object can contain the following fields:
+ *      - titleClass:         Name of the CSS class to use for displaying item titles.
+ *      - childrenCountClass: Name of the CSS class to use for displaying the number of children of 
+ *                            the class.
+ *      - highlightClass:     Name of the CSS class to use for highlighting parts of names matched
+ *                            during search.
+ *      - specialClass:       Name of the CSS class to use for displaying 'special' nodes.
  */
-function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highlightClass) {
-    var children, childrenElement, childCount, childIndex, element, elements, elementTitle, item,
-        items, itemIndex, itemElement, names, nameCount, nameIndex, rootElement, titleElement;
+function TreeControl(hierarchy, hostId, options) {
+    var children, childrenCountClass, childrenElement, childCount, childIndex, element, elements,
+        elementTitle, item, items, itemElement, names, nameCount, nameIndex, rootElement,
+        specialClass, titleClass, titleElement;
 
     this.hierarchy = hierarchy;
     this.hostId = hostId;
-    this.highlightClass = highlightClass;
+    this.options = options;
 
-    rootElement = document.createElement('div');
+    rootElement = document.createElement('span');
 
     elements = new jsw.util.Queue();
     items = new jsw.util.Queue();
@@ -251,7 +253,15 @@ function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highligh
         elements.enqueue(rootElement);
     }
 
-    itemIndex = 0;
+    if (options) {
+        titleClass = options.titleClass;
+        childrenCountClass = options.childrenCountClass;
+        specialClass = titleClass + ' ' + options.specialClass;
+    } else {
+        titleClass = '';
+        childrenCountClass = '';
+        specialClass = '';
+    }
 
     while (!items.isEmpty()) {
         item = items.dequeue();
@@ -271,7 +281,13 @@ function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highligh
         itemElement.style.display = 'block';
                
         titleElement = document.createElement('a');
-        titleElement.setAttribute('class', titleClass);
+
+        if (item.special && specialClass) {
+            titleElement.setAttribute('class', specialClass);
+        } else if (titleClass) {
+            titleElement.setAttribute('class', titleClass);
+        }
+
         titleElement.innerHTML = elementTitle.substring(0, elementTitle.length - 2);
         itemElement.appendChild(titleElement);        
 
@@ -280,7 +296,11 @@ function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highligh
             itemElement.appendChild(document.createTextNode(' ('));
 
             titleElement = document.createElement('span');
-            titleElement.setAttribute('class', childrenCountClass);
+
+            if (childrenCountClass) {
+                titleElement.setAttribute('class', childrenCountClass);
+            }
+
             titleElement.innerHTML = childCount;
             itemElement.appendChild(titleElement);
 
@@ -299,7 +319,6 @@ function TreeControl(hierarchy, hostId, titleClass, childrenCountClass, highligh
         }
 
         element.appendChild(itemElement);
-        itemIndex++;
     }
 
     this.showFirstLevel(rootElement);
@@ -377,7 +396,7 @@ TreeControl.prototype = {
         }
 
         searchForExpr = new RegExp('(' + str + ')');
-        highlightClass = this.highlightClass;
+        highlightClass = (this.options) ? this.options.highlightClass : null;
         replaceExpr = (highlightClass) ? '<span class="' + highlightClass + '">' : '';
 
         while (!items.isEmpty()) {
@@ -402,7 +421,7 @@ TreeControl.prototype = {
             matchFound = false;
             innerHtml = '';
     
-            if (str === '' || replaceExpr === '') {
+            if (str === '') {
                 for (nameIndex = 0; nameIndex < nameCount; nameIndex++) {
                     innerHtml += names[nameIndex] + ', ';
                 }
@@ -425,9 +444,13 @@ TreeControl.prototype = {
 
                 do {
                     parentElement.style.display = 'block';
-                    parentElement.lastChild.style.display = 'block';
+
+                    if (!parentElement.style.marginLeft) {
+                        parentElement.lastChild.style.display = 'block';                        
+                    }
+
                     parentElement = parentElement.parentNode;
-                } while (parentElement.parentNode !== null);
+                } while (parentElement.nodeName.toUpperCase() !== 'SPAN');
             } else {
                 element.style.display = 'none';
             }

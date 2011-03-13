@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>OWL EL Reasoner</title>
+        <title>BrandT - Browser Hosted OWL EL Reasoner</title>
         <link rel="stylesheet" href="style.css" type="text/css" />
     </head>
     <body onload="init();">
@@ -11,7 +11,7 @@
             <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester"><img src="images/logomanchester.gif" alt="The University of Manchester"/></a> 
         </div>
         <div id="content">
-            <h1>OWL EL Reasoner</h1>
+            <h1>BrandT - Browser Hosted OWL EL Reasoner</h1>
             <ul id="tabs">
                 <li id="ontologyTab" class="active"><a href="ontology.html" onclick="return false;">Ontology</a></li>
                 <li id="statsTab" class="disabled"><a href="stats.html" onclick="return false;">Stats</a></li>
@@ -27,7 +27,9 @@
 	                <a href="tests/subsumption/test2.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test2.owx');">Test #2</a> |
 	                <a href="tests/subsumption/test3.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test3.owx');">Test #3</a> |
 	                <a href="tests/subsumption/test4.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test4.owx');">Test #4</a> |
-                    <a href="tests/subsumption/not-galen.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/not-galen.owx');">NOT-GALEN</a>
+	                <a href="tests/subsumption/LAT.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/LAT.owx');">LAT</a> |
+                    <a href="tests/subsumption/NOT-GALEN.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/NOT-GALEN.owx');">NOT-GALEN</a> |
+	                <a href="tests/subsumption/GO.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/GO.owx');">GO</a>
                 </div>
                 <textarea id="ontologyText" cols="40" rows="20" placeholder="Please input OWL\XML ontology here."></textarea>
                 <input type="button" id="classifyBtn" value="Classify" onclick="classifyBtnClicked();"/>
@@ -152,8 +154,12 @@
                 var hierarchy = reasoner.classHierarchy;
 
                 if (hierarchy.length > 0) {
-                    classTree = new TreeControl(hierarchy, 'classHierarchy', 'classLink',
-                        'classChildrenCount', 'highlightText'); 
+                    classTree = new TreeControl(hierarchy, 'classHierarchy', {
+                        titleClass: 'classLink',
+                        childrenCountClass: 'classChildrenCount', 
+                        highlightClass: 'highlightText',
+                        specialClass: 'special'
+                    });
 
                     tabControl.setEnabled('classesTab', true);
                 }
@@ -166,8 +172,12 @@
                 var hierarchy = reasoner.objectPropertyHierarchy;
 
                 if (hierarchy.length > 0) {
-                    opropTree = new TreeControl(hierarchy, 'opropHierarchy', 'classLink',
-                        'classChildrenCount', 'highlightText');
+                    opropTree = new TreeControl(hierarchy, 'opropHierarchy', {
+                        titleClass: 'classLink',
+                        childrenCountClass: 'classChildrenCount', 
+                        highlightClass: 'highlightText',
+                        specialClass: 'special'
+                    });
 
                     tabControl.setEnabled('opropTab', true);
                 }
@@ -178,7 +188,7 @@
                 tabControl.setEnabled('sparqlTab', true);
             }
         
-           /** Parses the ontology from the given OWL/XML and builds a reasoner object for it. */ 
+            /** Parses the ontology from the given OWL/XML and builds a reasoner object for it. */ 
             function classifyBtnClicked() {
                 var clock, classificationTime, ontology, owlXml, totalClock, totalTime;
 
@@ -187,30 +197,30 @@
               
                     totalClock = new jsw.util.Stopwatch();
                     clock = new jsw.util.Stopwatch();
-              
+
                     totalClock.start();
                     clock.start();
                     ontology = jsw.owl.xml.parse(owlXml, handleError);
                     parsingTime = clock.stop();
-              
+
                     clock.start();
                     reasoner = new jsw.owl.Reasoner(ontology);
                     classificationTime = clock.stop(); 
                     totalTime = totalClock.stop();
-              
+
                     prepareOntologyTab();
                     prepareStatsTab(ontology, parsingTime, totalTime);
                     prepareClassesTab();
                     prepareOpropTab();
                     prepareSparqlTab();
-               
+
                     tabControl.select('statsTab');
-               } catch (ex) {
+                } catch (ex) {
                     handleError(ex);
-               }
+                }
             }
         
-           /** Processes the query from the given string and outputs the result. */
+            /** Processes the query from the given string and outputs the result. */
             function queryBtnClicked() {
                 var column, doc, html, query, queryResults, queryTxt, result, row, rowCount,
                     rowIndex, stopwatch, time;
@@ -268,11 +278,11 @@
                 }
             }
         
-           /**
-            * Loads ontology stored at the given path into the ontology text box.
-            * 
-            * @param url URL of the file containing an ontology to load.
-            */
+            /**
+             * Loads ontology stored at the given path into the ontology text box.
+             * 
+             * @param url URL of the file containing an ontology to load.
+             */
             function showOntologyFile(url) {
                 var nav = navigator.appVersion;
                 
@@ -289,14 +299,6 @@
                     // Returns false, so that the file can be opened in a new window.
                     return false;
                 }
-            }
-         
-            /**
-             * Makes sure that only the classes with the names which (partially) match the text in 
-             * the input box are displayed.
-             */
-            function showMatchingClasses() {            
-                classTree.showMatches(document.getElementById('classSearch').value);
             }
          
             /** Initializes the page when it is loaded. */

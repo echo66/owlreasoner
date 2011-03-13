@@ -29,32 +29,40 @@ jsw.owl.EXPRESSION_TYPES = {
     AXIOM_CLASS_SUB: 0,
     /** EquivalentClasses axiom. */
     AXIOM_CLASS_EQ: 1,
+    /** DisjointClasses axiom */
+    AXIOM_CLASS_DISJOINT: 2,
     /** SubObjectPropertyOf axiom. */
-    AXIOM_OPROP_SUB: 2,
+    AXIOM_OPROP_SUB: 3,
     /** EquivalentObjectProperties axiom. */
-    AXIOM_OPROP_EQ: 3,
+    AXIOM_OPROP_EQ: 4,
+    /** ReflexiveObjectProperty axiom */
+    AXIOM_OPROP_REFL: 5,
+    /** TransitiveObjectProperty axiom */
+    AXIOM_OPROP_TRAN: 6,
     /** ObjectIntersectionOf class expression. */
-    CE_INTERSECT: 4,
+    CE_INTERSECT: 7,
     /** ObjectSomeValuesFrom class expression. */
-    CE_OBJ_VALUES_FROM: 5,
+    CE_OBJ_VALUES_FROM: 8,
     /** Class entity. */
-    ET_CLASS: 6,
+    ET_CLASS: 9,
     /** ObjectProperty entity. */
-    ET_OPROP: 7,
+    ET_OPROP: 10,
     /** (Named)Individual entity. */
-    ET_INDIVIDUAL: 8,
+    ET_INDIVIDUAL: 11,
     /** ClassAssertion fact. */
-    FACT_CLASS: 9,
+    FACT_CLASS: 12,
     /** ObjectPropertyAssertion fact. */
-    FACT_OPROP: 10,
+    FACT_OPROP: 13,
     /** ObjectPropertyChain object property expression. */
-    OPE_CHAIN: 11 
+    OPE_CHAIN: 14
 };
 
 /** Defines IRIs of important concepts in RDF namespace. */
 jsw.owl.IRIS = {
-    /** IRI by which the Thing concept is referred to in OWL. */
-    THING: 'owl:Thing'
+    /** IRI by which the Top concept is referred to in OWL. */
+    THING: 'owl:Thing',
+    /** IRI by which the Bottom concept is referred to in OWL. */
+    NOTHING: 'owl:Nothing'
 };
 
 /** Defines IRIs of important concepts in RDF namespace. */
@@ -366,6 +374,83 @@ jsw.owl.xml = {
         }
 
         /**
+         * Parses the given XML element into the object property axiom of the given type.
+         *
+         * @param type Type of an object property axiom represented by the element.
+         * @param element XML element to parse into the axiom object.
+         */
+        function parseOpropAxiom(type, element) {
+            var node = element.firstChild,
+                oprop;
+          
+            while (node) {
+                if (node.nodeType === 1) {
+                    if (!oprop) {
+                        oprop = parseEntity(exprTypes.ET_OPROP, 'ObjectProperty', node);
+                    } else {
+                        throw 'Unexpected element ' + node.nodeName + ' found inside the object ' +
+                            'property axiom element!';
+                    }
+                }
+
+                node = node.nextSibling;
+            }
+
+            if (!oprop) {
+                throw 'Object property axiom does not contain an argument!';
+            }
+
+            statements.push({
+                'type': type,
+                'objectProperty': oprop
+            });
+        }
+
+        /**
+         * Parses Declaration OWL/XML element into the corresponding entity object within the
+         * ontology.
+         *
+         * @param element OWL/XML Declaration element to parse.
+         */
+        function parseDeclaration(element) {
+            var found = false,
+                node = element.firstChild,
+                nodeName;
+
+            // This will not detect (and report) declarations of other entity types. On purpose.
+            while (node) {
+                if (node.nodeType === 1) {
+                    nodeName = node.nodeName;
+
+                    if (found) {
+                        throw 'Unexpected element "' + nodeName + '" found in Declaration element!';
+                    }
+
+                    switch (nodeName) {
+                    case 'Class':
+                        parseEntity(exprTypes.ET_CLASS, 'Class', node);
+                        found = true;
+                        break;
+                    case 'ObjectProperty':
+                        parseEntity(exprTypes.ET_OPROP, 'ObjectProperty', node);
+                        found = true;
+                        break;
+                    case 'NamedIndividual':
+                        parseEntity(exprTypes.ET_INDIVIDUAL, 'NamedIndividual', node);
+                        found = true;
+                        break;
+                    }
+                }
+
+                node = node.nextSibling;
+            }
+
+            if (!found) {
+                throw 'Declaration element is empty!';
+            }
+        }
+
+        /**
          * Parses ClassAssertion XML element into the corresponding object.
          * 
          * @param element OWL/XML ClassAssertion element.
@@ -449,11 +534,6 @@ jsw.owl.xml = {
          * Parses the given OWL/XML Prefix element and adds the information about this prefix to the
          * ontology.
          *
-
-
-
-
-
          * @param element OWL/XML Prefix element.
          */
         function parsePrefixDefinition(element) {
@@ -492,17 +572,29 @@ jsw.owl.xml = {
          
             try {
                 switch (node.nodeName) {
+                case 'Declaration':
+                    parseDeclaration(node);
+                    break;
                 case 'SubClassOf':
                     parseClassAxiom(exprTypes.AXIOM_CLASS_SUB, node, 2, 2);
                     break;
                 case 'EquivalentClasses':
                     parseClassAxiom(exprTypes.AXIOM_CLASS_EQ, node, 2);
                     break;
+                case 'DisjointClasses':
+                    parseClassAxiom(exprTypes.AXIOM_CLASS_DISJOINT, node, 2);
+                    break;
                 case 'SubObjectPropertyOf':
                     parseSubOpropAxiom(node);
                     break;
                 case 'EquivalentObjectProperties':
                     parseEqOpropAxiom(exprTypes.AXIOM_OPROP_EQ, node);
+                    break;
+                case 'ReflexiveObjectProperty':
+                    parseOpropAxiom(exprTypes.AXIOM_OPROP_REFL, node);
+                    break;
+                case 'TransitiveObjectProperty':
+                    parseOpropAxiom(exprTypes.AXIOM_OPROP_TRAN, node);
                     break;
                 case 'ClassAssertion':
                     parseClassAssertion(node);
@@ -706,6 +798,19 @@ jsw.owl.xml = {
         }
 
         /**
+         * Returns OWL/XML representation for the given OWL object property axiom.
+         * 
+         * @param axiom An object representing an object property axiom.
+         * @param name Name of the OWL/XML element to use for the axiom.
+         * @returns OWL/XML representation for the given axiom.
+         */
+        function writeOpropAxiom(axiom, name) {
+            return '<' + name + '>' +
+                writeEntity(axiom.objectProperty, 'ObjectProperty') +
+                '</' + name + '>';
+        }
+
+        /**
          * Returns an OWL/XML string representing the given OWL ObjectPropertyAssertion statement.
          *
          * @param assertion OWL ObjectPropertyAssertion statement.
@@ -763,11 +868,20 @@ jsw.owl.xml = {
             case exprTypes.AXIOM_CLASS_SUB:
                 owlXml += writeClassAxiom(axiom, 'SubClassOf');
                 break;
+            case exprTypes.AXIOM_CLASS_DISJOINT:
+                owlXml += writeClassAxiom(axiom, 'DisjointClasses');
+                break;
             case exprTypes.AXIOM_OPROP_SUB:
                 owlXml += writeOpropSubAxiom(axiom);
                 break;
             case exprTypes.AXIOM_OPROP_EQ:
                 owlXml += writeEqOpropAxiom(axiom);
+                break;
+            case exprTypes.AXIOM_OPROP_REFL:
+                owlXml += writeOpropAxiom(axiom, 'ReflexiveObjectProperty');
+                break;
+            case exprTypes.AXIOM_OPROP_TRAN:
+                owlXml += writeOpropAxiom(axiom, 'TransitiveObjectProperty');
                 break;
             case exprTypes.FACT_CLASS:
                 owlXml += writeClassAssertion(axiom);
@@ -967,7 +1081,7 @@ jsw.sparql = {
             '"((?:[^\\x22\\x5C\\xA\\xD]|\\[tbnrf\\"\'])*)"|' + 
             '"""((?:(?:"|"")?(?:[^"\\]|\\[tbnrf\\"\']))*)"""|' + 
             "'''((?:(?:'|'')?(?:[^'\\]|\\[tbnrf\\\"']))*)'''",
-            iriRef = '<[^-<>"{}|^`\\][\\x00-\\x20]*>',
+            iriRef = '<[^<>"{}|^`\\][\\x00-\\x20]*>',
             prefixedName = pnNameNs + pnLocal,
             exponent = '[eE][+-]?[0-9]+';
 
@@ -1599,17 +1713,87 @@ jsw.sparql = {
 };
 
 /** Allows to work with SQL representation of queries against RDF data. */
-jsw.sql = {
+jsw.TrimQueryStorage = function () {
+    /** The object storing ABox data. */
+    this.database = {
+        ClassAssertion: [],
+        ObjectPropertyAssertion: []
+    };
+
+    /** The object which can be used to send queries against ABoxes. */
+    this.queryLang = this.createQueryLang();
+};
+
+/** Prototype for all jsw.TrimQueryStorage objects. */
+jsw.TrimQueryStorage.prototype = {
     /**
-     * Returns an SQL representation of the given RDF query. It is assumed that all class assertions
-     * are stored in one table and all object property assertions in another one.
+     * Answers the given RDF query.
+     *
+     * @param query RDF query to anwer.
+     * @returns Data set containing the results matching the query.
+     */
+    answerQuery: function (query) {
+        var sql = this.createSql(query);
+        
+        try {
+            return this.queryLang.parseSQL(sql).filter(this.database);
+        } catch (ex) {
+            // Recreate the query language object, since the previous object can not be used now.
+            this.queryLang = this.createQueryLang();
+            throw ex;
+        }
+    },
+
+    /**
+     * Adds a class assetion to the database.
+     *
+     * @param individualIri IRI of the inividual in the assertion.
+     * @param classIri IRI of the class in the assertion.
+     */
+    addClassAssertion: function (individualIri, classIri) {
+        this.database.ClassAssertion.push({
+            individual: individualIri,
+            className: classIri
+        });
+    },
+
+    /**
+     * Adds an object property assetion to the database.
+     *
+     * @param objectPropertyIri IRI of the object property in the assertion.
+     * @param leftIndIri IRI of the left individual in the assertion.
+     * @param rightIndIri IRI of the right individual in the assertion.
+     */
+    addObjectPropertyAssertion: function (objectPropertyIri, leftIndIri, rightIndIri) {
+        this.database.ObjectPropertyAssertion.push({
+            objectProperty: objectPropertyIri,
+            leftIndividual: leftIndIri,
+            rightIndividual: rightIndIri
+        });
+    },
+
+    /**
+     * Creates an object which can be used for sending queries against the database.
+     *
+     * @returns Object which can be used for sending queries against the database.
+     */
+    createQueryLang: function () {
+        return TrimPath.makeQueryLang({
+            ClassAssertion          : { individual      : { type: 'String' },
+                                        className       : { type: 'String' }},
+            ObjectPropertyAssertion : { objectProperty  : { type: 'String' },
+                                        leftIndividual  : { type: 'String' },
+                                        rightIndividual : { type: 'String' }}
+        });
+    },
+
+    /**
+     * Returns an SQL representation of the given RDF query.
      *
      * @param query jsw.rdf.Query to return the SQL representation for.
-     * @param classAssertionTable Name of the table where all class assertions are stored.
-     * @param opropAssertionTable Name of the table where all object property assertions are stored.
      * @returns SQL representation of the given RDF query.
      */
-    write: function (query, classAssertionTable, opropAssertionTable) {
+    createSql: function (query) {
         var from, limit, objectField, orderBy, predicate, predicateType, predicateValue, rdfTypeIri,
             select, subjectField, table, triple, triples, tripleCount, tripleIndex, exprTypes,
             variable, vars, varCount, varField, varFields, varIndex, where;
@@ -1617,11 +1801,13 @@ jsw.sql = {
         from = '';
         where = '';
         rdfTypeIri = jsw.rdf.IRIS.TYPE;
+
         exprTypes = jsw.rdf.Query.prototype.EXPR_TYPES;
         varFields = {};
 
         /** Appends a condition to the where clause based on the given expression.
          *
+
          * @param expr Expression to use for constructing a condition.
          * @param table Name of the table corresponding to the expression.
          * @param field Name of the field corresponding to the expression.
@@ -1663,15 +1849,15 @@ jsw.sql = {
 
             if (predicateType === exprTypes.IRI_REF) {
                 if (predicateValue === rdfTypeIri) {
-                    from += classAssertionTable + ' AS ' + table + ', ';
+                    from += 'ClassAssertion AS ' + table + ', ';
                     subjectField = 'individual';
                     objectField = 'className';
                 } else {
-                    from += opropAssertionTable + ' AS ' + table + ', ';
+                    from += 'ObjectPropertyAssertion AS ' + table + ', ';
                     where += table + ".objectProperty=='" + predicateValue + "' AND ";
                 }
             } else if (predicateType === exprTypes.VAR) {
-                from += opropAssertionTable + ' AS ' + table + ', ';
+                from += 'ObjectPropertyAssertion AS ' + table + ', ';
                 varField = varFields[predicateValue];
 
                 if (varField) {
@@ -1751,12 +1937,13 @@ jsw.sql = {
         limit = '';
 
         if (query.limit !== 0) {
-            limit = ' LIMIT ' + query.limit;
+            limit = ' LIMIT ';
             if (query.offset !== 0) {
-                limit += ', ' + query.offset;
+                limit += query.offset + ', ';
             }
+            limit += query.limit;
         } else if (query.offset !== 0) {
-            limit = ' LIMIT 0, ' + query.offset;
+            limit = ' LIMIT ' + query.offset + ', ALL';
         }
 
         return select + from + where + orderBy + limit;
@@ -1768,28 +1955,13 @@ jsw.sql = {
  * reasoning on full EL++, but it does cover EL+ and its minor extensions.
  */
 jsw.owl.Reasoner = function (ontology) {  
-    var classSubsumers, clock, normalizedOntology, objectPropertySubsumers;
+    var classSubsumers, clock, exprTypes, normalizedOntology, objectPropertySubsumers;
     
-    /**
-     * Stores information about how much time different steps of building a 
-     * reasoner took.
-     */
+    /** Stores information about how much time different steps of building a reasoner took. */
     this.timeInfo = {};
     
-    /**
-     * Original ontology from which the reasoner was built.
-     */
+    /** Original ontology from which the reasoner was built. */
     this.originalOntology = ontology;
-   
-    /**
-     * Class hierarchy implied by the ontology.
-     */
-    this.classHierarchy = null;
-    
-    /**
-     * Rewritten A-Box of the ontology.
-     */
-    this.aBox = null;
    
     clock = new jsw.util.Stopwatch();
 
@@ -1806,30 +1978,31 @@ jsw.owl.Reasoner = function (ontology) {
     this.timeInfo.classification = clock.stop();
    
     clock.start();
+    /** Rewritten A-Box of the ontology. */
     this.aBox = this.rewriteAbox(normalizedOntology, objectPropertySubsumers, classSubsumers);
     this.timeInfo.aBoxRewriting = clock.stop();
 
+    exprTypes = jsw.owl.EXPRESSION_TYPES;
+
     clock.start();
-    this.classHierarchy = classSubsumers.buildHierarchy(ontology.getClasses());
+    /** Class hierarchy implied by the ontology. */
+    this.classHierarchy = classSubsumers.buildHierarchy(
+        ontology.getClasses(),
+        this.getExplicitClassSubsumptions()
+    );
     this.timeInfo.classHierarchy = clock.stop();
 
     clock.start();
-    this.objectPropertyHierarchy =
-        objectPropertySubsumers.buildHierarchy(ontology.getObjectProperties());
+    /** Object property hierarchy implied by the ontology. */
+    this.objectPropertyHierarchy = objectPropertySubsumers.buildHierarchy(
+        ontology.getObjectProperties(),
+        this.getExplicitObjectPropertySubsumptions()
+    );
     this.timeInfo.objectPropertyHierarchy = clock.stop();
 };
 
 /** Prototype for all jsw.owl.Reasoner objects. */
 jsw.owl.Reasoner.prototype = {
-    /** The object which can be used to send queries against ABoxes. */
-    queryLang: TrimPath.makeQueryLang({
-        ClassAssertion          : { individual      : { type: 'String' },
-                                    className       : { type: 'String' }},
-        ObjectPropertyAssertion : { objectProperty  : { type: 'String' },
-                                    leftIndividual  : { type: 'String' },
-                                    rightIndividual : { type: 'String' }}
-    }),
-
     /**
      * Builds an object property subsumption relation implied by the ontology.
      * 
@@ -1867,6 +2040,7 @@ jsw.owl.Reasoner.prototype = {
         do {
             axiom = axioms[axiomIndex];
          
+
             if (axiom.type !== reqAxiomType || axiom.arg1.type !== opropType) {
                 continue;
             }
@@ -1909,6 +2083,7 @@ jsw.owl.Reasoner.prototype = {
       
         return objectPropertySubsumers;
     },
+
    
     /**
      * Builds a class subsumption relation implied by the ontology.
@@ -1920,8 +2095,10 @@ jsw.owl.Reasoner.prototype = {
      * @returns 2-tuple storage containing the class subsumption relation implied by the ontology.
      */
     buildClassSubsumerSets: function (ontology, objectPropertySubsumers) {
-        var axioms = ontology.axioms,
-            axiomCount = axioms.length,           
+        var a,
+            axioms = ontology.axioms,
+            axiomCount = axioms.length,
+            b,
             // Provides quick access to axioms like r o s <= q.
             chainSubsumers = this.buildChainSubsumerSets(ontology),     
             // Stores labels for each node.
@@ -1932,53 +2109,12 @@ jsw.owl.Reasoner.prototype = {
             instruction,
             leftChainSubsumers = chainSubsumers.left,
             node,
+            nothing = jsw.owl.IRIS.NOTHING,
             queue,
             queues = {},
             rightChainSubsumers = chainSubsumers.right,
+            p,
             someInstructionFound;
-      
-        /**
-         * Checks if the given axiom is in the form
-         * 
-         * A1 n A2 n ... n A n ... n An <= C, n >= 0
-         * 
-         * where A is the given class and Ai, C are atomic classes. 
-         * 
-         * @param axiom Axiom to check.
-         * @param classIri Class to look for in the left part of the axiom.
-         * @returns True if the axiom is in the required form, false otherwise.
-         */
-        function canUseForLabelNodeInstruction(axiom, classIri) {
-            var classes, classExpr, classIndex, firstArg, firstArgType;
-
-            classExpr = exprTypes.ET_CLASS;
-
-            if (axiom.type !== exprTypes.AXIOM_CLASS_SUB || axiom.args[1].type !== classExpr) {
-                return false;
-            }
-
-            firstArg = axiom.args[0];
-            firstArgType = firstArg.type;
-         
-            if (firstArgType === classExpr && firstArg.IRI === classIri) {
-                return true;
-            } else if (firstArgType !== exprTypes.CE_INTERSECT) {
-                return false;
-            }
-            
-            classes = firstArg.args;
-            classIndex = classes.length - 1;
-            
-            do {
-                // Could use binary search here, since classes is sorted. BUT usually there are not
-                // many elements in classes array and binary search proves less efficient.
-                if (classes[classIndex].IRI === classIri) {
-                    return true;
-                }
-            } while (classIndex--);
-         
-            return false;
-        }
       
         /**
          * Adds instructions 
@@ -1993,41 +2129,68 @@ jsw.owl.Reasoner.prototype = {
          * @param B IRI of the class to add instructions to.
          */
         function addLabelNodeIfInstructions(a, b) {
-            var axiom, allAxioms, args, axiomIndex, classes, classIndex, classIri, firstArg,
-                intersectType, newClassIndex, reqLabels;
+            var allAxioms, args, axiom, axiomIndex, axiomType, classes, classExpr, classIndex,
+                classIri, firstArg, firstArgType, found, intersectType, lastClassIndex, reqLabels;
             
+            axiomType = exprTypes.AXIOM_CLASS_SUB;
+            classExpr = exprTypes.ET_CLASS;
             intersectType = exprTypes.CE_INTERSECT;
+
             allAxioms = axioms;
             axiomIndex = axiomCount - 1;        
 
             do {
                 axiom = allAxioms[axiomIndex];
-   
-                if (!canUseForLabelNodeInstruction(axiom, a)) {
+
+                if (axiom.type !== axiomType || axiom.args[1].type !== classExpr) {
                     continue;
                 }
-                
-                reqLabels = null;
+
                 args = axiom.args;
-                firstArg = args[0]; 
-            
-                if (firstArg.type === intersectType) {
-                    classes = firstArg.args;
-                    // classes.length > 0, since otherwise exception would be thrown in 
-                    // canUseForLabelNodeInstruction.
-                    classIndex = classes.length - 1;
-                    newClassIndex = classIndex - 1;
-                    reqLabels = {};
-                    
-                    do {
-                        classIri = classes[classIndex].IRI;
-                  
-                        if (classIri !== a) {
-                            reqLabels[classIri] = true;
-                        }
-                    } while (classIndex--);
+                firstArg = args[0];
+                firstArgType = firstArg.type;
+
+                if (firstArgType === classExpr && firstArg.IRI === a) {
+                    queues[b].enqueue({
+                        'type': 0, 
+                        'node': b,
+                        'label': args[1].IRI, 
+                        'reqLabels': null
+                    });
+                    continue;
+                } else if (firstArgType !== intersectType) {
+                    continue;
                 }
             
+                classes = firstArg.args;
+                lastClassIndex = classes.length - 1;
+                classIndex = lastClassIndex;
+                found = false;
+
+                do {
+                    classIri = classes[classIndex].IRI;
+                  
+                    if (classIri !== a) {
+                        found = true;
+                        break;
+                    }
+                } while (classIndex--);
+
+                if (!found) {
+                    continue;
+                }
+
+                classIndex = lastClassIndex;
+                reqLabels = {};
+                    
+                do {
+                    classIri = classes[classIndex].IRI;
+                  
+                    if (classIri !== a) {
+                        reqLabels[classIri] = true;
+                    }
+                } while (classIndex--);
+
                 queues[b].enqueue({
                     'type': 0, 
                     'node': b,
@@ -2206,12 +2369,12 @@ jsw.owl.Reasoner.prototype = {
 
             // For all subsumers of object property P, including P itself.
             for (q in objectPropertySubsumers.get(p)) {  
-                // Add q as a label between node1 and node2.
+                // Add q as a label between A and B.
                 edges.add(a, b, q);
          
                 // Since we discovered that A <= E Q.B, we know that A <= E Q.C, where C is any
                 // subsumer of B. We therefore need to look for new subsumers D of A by checking
-                // all axioms like form E Q.C <= D.
+                // all axioms like E Q.C <= D.
                 for (c in bSubsumers) {
                     addLabelNodeInstructions(q, c, a);
                 }
@@ -2328,6 +2491,16 @@ jsw.owl.Reasoner.prototype = {
             }
         } while (someInstructionFound);
       
+        for (a in edgeLabels.get()) {
+            for (b in edgeLabels.get(a)) {
+                for (p in edgeLabels.get(a, b)) {
+                    if (classSubsumers.exists(b, nothing)) {
+                        classSubsumers.add(a, nothing);
+                    }
+                }
+            }
+        }
+
         return classSubsumers;
     },
 
@@ -2382,6 +2555,89 @@ jsw.owl.Reasoner.prototype = {
     },
 
     /**
+     * Returns a PairStorage containing the explicit object property subsumptions present in the
+     * ontology.
+     *
+     * @returns PairStorage containing an explicit object property subsumptions present in the
+     * ontology.
+     */
+    getExplicitObjectPropertySubsumptions: function () {
+        var arg1, arg2, axiom, axioms, axiomIndex, axiomType, exprTypes, opropType, storage;
+
+        axioms = this.originalOntology.axioms;
+        storage = new jsw.util.PairStorage();
+
+        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        axiomType = exprTypes.AXIOM_OPROP_SUB;
+        opropType = exprTypes.ET_OPROP;
+
+        for (axiomIndex = axioms.length; axiomIndex--;) {
+            axiom = axioms[axiomIndex]; 
+            arg1 = axiom.arg1;
+            arg2 = axiom.arg2;
+
+            if (axiom.type !== axiomType || arg1.type !== opropType || arg2.type !== opropType) {
+                continue;
+            }
+
+            storage.add(arg1.IRI, arg2.IRI);
+        }
+        
+        return storage;
+    },
+
+    /**
+     * Returns a PairStorage containing the explicit class subsumptions present in the ontology.
+     *
+     * @returns PairStorage containing an explicit class subsumption relation present in the
+     * ontology.
+     */
+    getExplicitClassSubsumptions: function () {
+        var axiom, axiomArgs, axiomIndex, axiomEqType, axiomSubType, axioms, classIri, classType,
+            expr, exprArgs, exprArgIndex, exprType, exprTypes, reqExprType, stack, storage;
+
+        axioms = this.originalOntology.axioms;
+        storage = new jsw.util.PairStorage();
+        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        axiomEqType = exprTypes.AXIOM_CLASS_EQ;
+        axiomSubType = exprTypes.AXIOM_CLASS_SUB;
+        classType = exprTypes.ET_CLASS;
+        reqExprType = exprTypes.CE_INTERSECT;
+
+        for (axiomIndex = axioms.length; axiomIndex--;) {
+            axiom = axioms[axiomIndex]; 
+            axiomArgs = axiom.args;
+
+            if ((axiom.type !== axiomSubType && axiom.type !== axiomEqType) ||
+                    axiomArgs[0].type !== classType) {
+                continue;
+            }
+
+            classIri = axiomArgs[0].IRI;
+
+            // We need to use stack for processing nested object intersection expressions.
+            stack = [axiomArgs[1]];
+
+            while (stack.length > 0) {
+                expr = stack.pop();
+                exprType = expr.type;
+                
+                if (exprType === classType) {
+                    storage.add(classIri, expr.IRI);
+                } else if (exprType === reqExprType) {
+                    exprArgs = expr.args;
+
+                    for (exprArgIndex = exprArgs.length; exprArgIndex--;) {
+                        stack.push(exprArgs[exprArgIndex]);
+                    }
+                }
+            }
+        }
+        
+        return storage;
+    },
+
+    /**
      * Rewrites an ABox of the ontology into the relational database to use it for conjunctive query
      * answering. 
      * 
@@ -2394,7 +2650,8 @@ jsw.owl.Reasoner.prototype = {
         var axioms = ontology.axioms,
             exprTypes = jsw.owl.EXPRESSION_TYPES,
             lastAxiomIndex = axioms.length - 1,
-            originalOntology = this.originalOntology;
+            originalOntology = this.originalOntology,
+            database = new jsw.TrimQueryStorage();
       
         /**
          * Puts class assertions implied by the ontology into the database.
@@ -2402,8 +2659,8 @@ jsw.owl.Reasoner.prototype = {
          * @returns Array containing all class assertions implied by the ontology. 
          */
         function rewriteClassAssertions() {
-            var assertions, axiom, axiomIndex, classFactType, classIri, individualClasses,
-                individualIri, subsumerIri;
+            var axiom, axiomIndex, classFactType, classIri, individualClasses, individualIri,
+                subsumerIri;
 
             if (lastAxiomIndex < 0) {
                 return [];
@@ -2430,20 +2687,13 @@ jsw.owl.Reasoner.prototype = {
                     }                
                 }
             } while (axiomIndex--);
-         
-            assertions = [];
 
             // Put class assertions into the database.
             for (individualIri in individualClasses.get()) {
                 for (classIri in individualClasses.get(individualIri)) {
-                    assertions.push({
-                        individual: individualIri,
-                        className: classIri
-                    });
+                    database.addClassAssertion(individualIri, classIri);
                 }
             }
-         
-            return assertions;
         }
       
         /** 
@@ -2452,9 +2702,9 @@ jsw.owl.Reasoner.prototype = {
          * @returns Array containing all object property assertions implied by the ontology.
          */
         function rewriteObjectPropertyAssertions() {
-            var args, assertions, axiom, axiomIndex, centerInd, chainSubsumer, changesHappened, 
-                opropSubsumer, leftInd, leftOprop, oprop, opropType, reqAxiomType, reqExprType,
-                rightInd, rightOprop, subsumers, storage;
+            var args, axiom, axiomIndex, centerInd, chainSubsumer, changesHappened, opropSubsumer,
+                leftInd, leftOprop, oprop, opropType, reqAxiomType, reqExprType, rightInd,
+                rightOprop, subsumers, storage;
             
             if (lastAxiomIndex < 0) {
                 return [];
@@ -2514,8 +2764,6 @@ jsw.owl.Reasoner.prototype = {
 	                }
                 } while (axiomIndex--);
             } while (changesHappened);
-         
-            assertions = [];
 
             // Put object property assertions into the database.
             for (oprop in storage.get()) {
@@ -2525,22 +2773,16 @@ jsw.owl.Reasoner.prototype = {
             
                 for (leftInd in storage.get(oprop)) {
                     for (rightInd in storage.get(oprop, leftInd)) {
-                        assertions.push({
-                            'objectProperty': oprop,
-                            'leftIndividual': leftInd,
-                            'rightIndividual': rightInd
-                        });
+                        database.addObjectPropertyAssertion(oprop, leftInd, rightInd);
                     }
                 }
             }
-         
-            return assertions;
         }
-      
-        return {
-            ClassAssertion: rewriteClassAssertions(),
-	        ObjectPropertyAssertion: rewriteObjectPropertyAssertions()
-	    };
+
+        rewriteClassAssertions();
+        rewriteObjectPropertyAssertions();        
+
+        return database;
     },
    
     /**
@@ -2550,15 +2792,11 @@ jsw.owl.Reasoner.prototype = {
      * @returns True if the ontology satisfies the query, false otherwise.
      */
     answerQuery: function (query) {
-        var sql;
-
         if (!query) {
             throw 'The query is not specified!'; 
         }
 
-        sql = jsw.sql.write(query, 'ClassAssertion', 'ObjectPropertyAssertion');
-
-        return this.queryLang.parseSQL(sql).filter(this.aBox);
+        return this.aBox.answerQuery(query);
     },
    
     /**
@@ -2944,12 +3182,85 @@ jsw.owl.Reasoner.prototype = {
 	            }, {
 	                'type': reqAxiomType,
 	                'args': [axiom.args[0], {
+
 	                    'type': reqExprType,
 	                    'opropExpr': secondArg.opropExpr,
 	                    'classExpr': newClassExpr
 	                }]
 	            }];
             },
+
+            /**
+             * Checks if the given statement is a DisjointClasses axiom involving some class
+             * expressions A1 .. An. If this is the case, returns a set of normalized axioms
+             * Ai n Aj <= {}, for all i <> j.
+             *
+             * @param statement Statement to try to apply the rule to.
+             * @returns Set of statements which are the result of applying the rule to the given
+             * statement or null if the rule could not be applied.
+             */
+            function (statement) {
+                var args, argIndex1, argIndex2, firstArg, intersectType, normalized, nothing,
+                    resultAxiomType;
+                
+                if (statement.type !== exprTypes.AXIOM_CLASS_DISJOINT) {
+                    return null;
+                }
+                
+                resultAxiomType = exprTypes.AXIOM_CLASS_SUB;
+                intersectType = exprTypes.CE_INTERSECT;
+                nothing = jsw.owl.IRIS.NOTHING;
+                args = axiom.args;
+                normalized = [];
+         
+                for (argIndex1 = args.length; argIndex1--;) {
+                    firstArg = args[argIndex1];
+                    
+                    for (argIndex2 = argIndex1; argIndex2--;) {
+                        normalized.push({
+                            'type': resultAxiomType,
+                            'args': [{
+                                'type': intersectType,
+                                'args': [firstArg, args[argIndex2]]
+                            }, nothing]
+                        });
+                    }
+                }
+         
+                if (normalized.length === 0) {
+                    throw 'DisjointClasses axiom has no arguments!';
+                }
+
+                return normalized;
+            },
+
+            /**
+             * Checks if the given statement is a TransitiveObjectProperty axiom about some object
+             * property P. If this is a case, returns an equivalent normalized axiom in the form
+             * P o P <= P.
+             * 
+             * @param statement Axiom to try to apply the rule to.
+             * @returns Set of axioms which are result of applying the rule to the given axiom or
+             * null if the rule could not be applied.
+             */
+            function (statement) {
+                var oprop;
+                                
+                if (statement.type !== exprTypes.AXIOM_OPROP_TRAN) {
+                    return null;
+                }
+         
+                oprop = statement.objectProperty;
+        
+                return [{
+	                'type': exprTypes.AXIOM_ORPOP_SUB,
+	                'arg1': {
+                        'type': exprTypes.OPE_CHAIN,
+                        'args': [oprop, oprop]
+                    },
+                    'arg2': oprop
+	            }];
+            },            
       
             /**
              * Checks if the given statement is in the form a <= A, where a is individual and A is a
@@ -2958,7 +3269,7 @@ jsw.owl.Reasoner.prototype = {
              *
              * @param statement Statement to try to apply the rule to.
              * @returns Set of statements which are result of applying the rule to the given
-             * statement or undefined if the rule could not be applied.
+             * statement or null if the rule could not be applied.
              */
             function (statement) {
                 var classType, newClass, reqAxiomType;
@@ -2983,7 +3294,7 @@ jsw.owl.Reasoner.prototype = {
             }
         ];
 
-        // Main algorithm
+        // MAIN ALGORITHM
       
         // Copy all entities from the source to the destination ontology first.
         copyEntities();
@@ -3195,6 +3506,7 @@ jsw.owl.Ontology.prototype = {
      * @returns 'Associative array' of all classes in the ontology.
      */
     getClasses: function () {
+
         return this.entities[this.exprTypes.ET_CLASS];
     },
 
@@ -3222,7 +3534,6 @@ jsw.owl.Ontology.prototype = {
     },
 
     /**
-
      * Returns number of object properties in the ontology.
      * 
      * @returns Number of object properties in the ontology.
@@ -3337,6 +3648,8 @@ jsw.util.xml = {
     parseString: function (xml) {
         var xmlDoc, error;
 
+        xml = xml.replace(/^\s*/, '').replace(/\s*$/, '');
+
         if (window.DOMParser) {
             xmlDoc = new DOMParser().parseFromString(xml, 'text/xml');
             
@@ -3368,14 +3681,13 @@ jsw.util.xml = {
     }
 };
 
-/**
- * Queue implementing FIFO mechanism. 
- */
+/** Represents a queue implementing FIFO mechanism. */
 jsw.util.Queue = function () {
     this.queue = [];
     this.emptyElements = 0;
 };
 
+/** Prototype for all jsw.util.Queue objects. */
 jsw.util.Queue.prototype = {
     /**
      * Checks if the queue has no objects.
@@ -3425,15 +3737,15 @@ jsw.util.Queue.prototype = {
     }
 };
 
-/**
- * Stopwatch allows measuring time between different events.
- */
+/** Stopwatch allows measuring time between different events. */
 jsw.util.Stopwatch = function () {
     var startTime, // Time (in miliseconds) when the stopwatch was started last time.
         elapsedMs = null; // Contains the number of miliseconds in the last measured period of time.
    
     /**
      * Returns textual representation of the last measured period of time.
+     *
+     * @returns Textual representation of the last measured period of time.
      */
     this.getElapsedTimeAsText = function () {
         var miliseconds = elapsedMs % 1000,
@@ -3469,18 +3781,13 @@ jsw.util.Stopwatch = function () {
     };
 };
 
-/**
- * Pair storage can be used to hash 2-tuples by the values in them in some order.
- * 
- * @returns Object which can be used to hash 2-tuples by the values in them in some order.
- */
+/** Pair storage can be used to hash 2-tuples by the values in them in some order. */
 jsw.util.PairStorage = function () {
-    /**
-     * Data structure holding all pairs.
-     */
+    /** Data structure holding all pairs. */
     this.storage = {};
 };
 
+/** Prototype for all jsw.util.PairStorage objects. */
 jsw.util.PairStorage.prototype = {
     /**
      * Adds a new tuple to the storage.
@@ -3504,11 +3811,14 @@ jsw.util.PairStorage.prototype = {
      *
      * @param allowedObjects (optional) Object with property names giving the names of objects which
      * are allowed to be present in the hierarchy generated.
+     * @param diffRelation (optional) PairStorage containing the 'difference' relation. If given, 
+     * all relations in the hierarchy which are not present in diffRelation will be marked as
+     * 'special' in the resulting hierarchy.
      * @returns Object representing the hierarchy implied by the relation.
      */
-    buildHierarchy: function (allowedObjects) {
-        var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren, hierarchy, newObj,
-            nodeChildren, stack, self, hasParents, parent, parents;
+    buildHierarchy: function (allowedObjects, diffRelation) {
+        var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren, hierarchy, names,
+            newObj, nodeChildren, stack, self, hasParents, parent, parents;
 
         /**
          * Inserts the given object into the DAG.
@@ -3625,24 +3935,57 @@ jsw.util.PairStorage.prototype = {
          * Creates an object to be later inserted into the hierarchy generated.
          *
          * @param name Name of the object to create.
-         * @param equivalents Array containing names of equivalent objects.
+         * @param parentNames (optional) Names of the parent object.
          * @returns Object to be later inserted into the hierarchy generated.
          */
-        function createHierarchyObj(name) {
-            var equivalents, equivalentCount, equivalentIndex, names;
+        function createHierarchyObj(name, parentNames) {
+            var equivalent, equivalents, equivalentCount, equivalentIndex, names, parentCount,
+                parentIndex, shouldCheckSpecial, special;
             
             names = [name];
             equivalents = objInfo[name].equivalents;
             equivalentCount = equivalents.length;
+            shouldCheckSpecial = parentNames && diffRelation;
 
-            for (equivalentIndex = 0; equivalentIndex < equivalentCount; equivalentIndex++) {
-                names.push(equivalents[equivalentIndex]);
+            special = false;
+
+            if (shouldCheckSpecial) {
+                parentCount = parentNames.length;
+
+                for (parentIndex = 0; parentIndex < parentCount; parentIndex++) {
+                    if (!diffRelation.exists(name, parentNames[parentIndex])) {
+                        special = true;
+                        break;
+                    }
+                }
             }
 
-            return {
-                'names': names,
-                'children': []
-            };
+            for (equivalentIndex = 0; equivalentIndex < equivalentCount; equivalentIndex++) {
+                equivalent = equivalents[equivalentIndex];
+                names.push(equivalent);
+
+                if (shouldCheckSpecial) {
+                    for (parentIndex = 0; parentIndex < parentCount; parentIndex++) {
+                        if (!diffRelation.exists(equivalent, parentNames[parentIndex])) {
+                            special = true;
+                            break;
+                        }
+                    }
+                }                
+            }
+
+            if (special) {
+                return {
+                    'names': names,
+                    'children': [],
+                    'special': true
+                };
+            } else {
+                return {
+                    'names': names,
+                    'children': []
+                };
+            }
         }
 
         self = this;
@@ -3686,11 +4029,12 @@ jsw.util.PairStorage.prototype = {
         while (stack.length > 0) {
             curObj = stack.pop();
             curObjChildren = curObj.children;
-            nodeChildren = objInfo[curObj.names[0]].children;
+            names = curObj.names;
+            nodeChildren = objInfo[names[0]].children;
 
             for (child in nodeChildren) {
                 if (nodeChildren.hasOwnProperty(child)) {
-                    newObj = createHierarchyObj(child);
+                    newObj = createHierarchyObj(child, names);
                     curObjChildren.push(newObj);
                     stack.push(newObj);
                 }
