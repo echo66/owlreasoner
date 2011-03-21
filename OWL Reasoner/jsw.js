@@ -6,7 +6,8 @@
  * OWL-EL reasoner (with limitations)
  * SPARQL parser (with limitations).
  * 
- * @author Vit Stepanovs <vitaly.stepanov@gmail.com>, 2010 - 2011.
+ * Copyright <c> The University of Mancehster, 2010 - 2011.
+ * @author Vit Stepanovs <vitaly.stepanov@gmail.com>
  */
 
 /** Namespace for all library objects. */
@@ -60,9 +61,9 @@ jsw.owl.EXPRESSION_TYPES = {
 /** Defines IRIs of important concepts in RDF namespace. */
 jsw.owl.IRIS = {
     /** IRI by which the Top concept is referred to in OWL. */
-    THING: 'owl:Thing',
+    THING: 'http://www.w3.org/2002/07/owl#Thing',
     /** IRI by which the Bottom concept is referred to in OWL. */
-    NOTHING: 'owl:Nothing'
+    NOTHING: 'http://www.w3.org/2002/07/owl#Nothing'
 };
 
 /** Defines IRIs of important concepts in RDF namespace. */
@@ -92,7 +93,7 @@ jsw.owl.xml = {
      * 
      * @param owlXml String containing OWL/XML to be parsed.
      * @param onError Function to be called in case if the parsing error occurs.
-     * @returns Ontology object representing the ontology parsed.
+     * @return Ontology object representing the ontology parsed.
      */
     parse: function (owlXml, onError) {
         var exprTypes = jsw.owl.EXPRESSION_TYPES, // Cash reference to the constants.
@@ -108,7 +109,7 @@ jsw.owl.xml = {
          * @param type Type of the entity represented by the XML element.
          * @param typeName Name of the OWL/XML element which corresponds to the given entity type.
          * @param element XML element representing some entity.
-         * @returns Object representing the entity parsed. 
+         * @return Object representing the entity parsed. 
          */
         function parseEntity(type, typeName, element) {
             var abbrIri, colonPos, entity, iri, prefixName;
@@ -121,6 +122,7 @@ jsw.owl.xml = {
             iri = element.getAttribute('IRI');
 
             // If both attributes or neither are defined on the entity, it is an error.
+
             if ((!iri && !abbrIri) || (iri && abbrIri)) {
                 throw 'One and only one IRI or abbreviatedIRI attribute must be present in ' + 
                     element.nodeName + ' element!';
@@ -154,7 +156,7 @@ jsw.owl.xml = {
                 // Store information about abbreviated entity IRI, so that it can be used when
                 // writing the ontology back in OWL/XML.
                 entity.abbrIri = abbrIri;
-                return true;
+                return entity;
             }
         }
       
@@ -162,7 +164,7 @@ jsw.owl.xml = {
          * Parses XML element representing class intersection expression.
          * 
          * @param element XML element representing class intersection expression.
-         * @returns Object representing the class intersection expression. 
+         * @return Object representing the class intersection expression. 
          */
         function parseObjIntersectExpr(element) {
             var classExprs = [],
@@ -186,7 +188,7 @@ jsw.owl.xml = {
          * Parses XML element representing ObjectSomeValuesFrom expression.
          * 
          * @param element XML element representing the ObjectSomeValuesFrom expression.
-         * @returns Object representing the expression parsed.
+         * @return Object representing the expression parsed.
          */
         function parseSomeValuesFromExpr(element) {
             var oprop, classExpr, node;
@@ -218,6 +220,7 @@ jsw.owl.xml = {
                 'type': exprTypes.CE_OBJ_VALUES_FROM,
                 'opropExpr': oprop,
                 'classExpr': classExpr
+
             };
         }
       
@@ -225,7 +228,7 @@ jsw.owl.xml = {
          * Parses the given XML node into the class expression.
          *
          * @param element XML node containing class expression to parse.
-         * @returns An object representing the class expression parsed.
+         * @return An object representing the class expression parsed.
          */
         function parseClassExpr(element) {
             switch (element.nodeName) {
@@ -242,7 +245,7 @@ jsw.owl.xml = {
          * Parses an XML element representing the object property chain into the object.
          *
          * @param element Element representing an object property chain.
-         * @returns Object representing the object property chain parsed.
+         * @return Object representing the object property chain parsed.
          */
         function parseOpropChain(element) {
             var args = [],
@@ -270,7 +273,7 @@ jsw.owl.xml = {
         /**
          * Parses XML element representing SubObjectPropertyOf axiom into the object.
          * 
-         * @param element XML element representing SubObjectPropertyOf axiom.
+         * @param element OWL/XML element representing SubObjectPropertyOf axiom.
          */
         function parseSubOpropAxiom(element) {
             var firstArg, secondArg, node, opropType;
@@ -323,6 +326,7 @@ jsw.owl.xml = {
         function parseClassAxiom(type, element, minExprCount, maxExprCount) {
             var args = [],
                 node = element.firstChild;
+
           
             while (node) {
                 if (node.nodeType === 1) {
@@ -347,8 +351,9 @@ jsw.owl.xml = {
         }
 
         /**
-         * Parses EquivalentObjectProperties XML element into the corresponding
-         * object.
+         * Parses EquivalentObjectProperties XML element into the corresponding object.
+         *
+         * @param element OWL/XML element representing the EquivalentObjectProperties axiom.
          */
         function parseEqOpropAxiom(element) {
             var args = [],
@@ -428,6 +433,7 @@ jsw.owl.xml = {
 
                     switch (nodeName) {
                     case 'Class':
+
                         parseEntity(exprTypes.ET_CLASS, 'Class', node);
                         found = true;
                         break;
@@ -523,6 +529,7 @@ jsw.owl.xml = {
             }
          
             statements.push({
+
                 'type': exprTypes.FACT_OPROP,
                 'leftIndividual': leftIndividual,
                 'objectProperty': objectProperty, 
@@ -621,7 +628,7 @@ jsw.owl.xml = {
      * Builds an OWL/XML string representing the given ontology.
      * 
      * @param ontology Ontology to return the OWL/XML representation for.
-     * @returns OWL/XML representing the given ontology.
+     * @return OWL/XML representing the given ontology.
      */
     write: function (ontology) {
         var axiom, // Currently processed statement from the ontology.
@@ -638,7 +645,7 @@ jsw.owl.xml = {
          * 
          * @param entity Entity to return OWL/XML representation for.
          * @param entityName Name of XML tag to use for the entity.
-         * @returns OWL/XML representation for the given OWL entity.
+         * @return OWL/XML representation for the given OWL entity.
          */
         function writeEntity(entity, entityName) {
             var owlXml = '<' + entityName;
@@ -657,7 +664,7 @@ jsw.owl.xml = {
          * Returns OWL/XML representation for the given OWL class intersection expression.
          * 
          * @param expr Class intersection expression to return the OWL/XML representation for.
-         * @returns OWL/XML representation for the given OWL class intersection
+         * @return OWL/XML representation for the given OWL class intersection
          * expression.
          */
         function writeObjIntersectOfExpr(expr) {
@@ -666,7 +673,7 @@ jsw.owl.xml = {
                 subExprCount = subExprs.length,
                 subExprIndex;
         
-            for (subExprIndex = 0; subExprIndex < subExprCount; subExprIndex++) {
+            for (subExprIndex = 0; subExprIndex < subExprCount; subExprIndex += 1) {
                 owlXml += writeClassExpr(subExprs[subExprIndex]);
             }
         
@@ -678,7 +685,7 @@ jsw.owl.xml = {
          * Returns OWL/XML representation for the given OWL ObjectSomeValuesFrom expression.
          * 
          * @param expr ObjectSomeValuesFrom expression to return the OWL/XML representation for.
-         * @returns OWL/XML representation for the given OWL ObjectSomeValuesFrom expression.
+         * @return OWL/XML representation for the given OWL ObjectSomeValuesFrom expression.
          */
         function writeSomeValuesFromExpr(expr) {
             return '<ObjectSomeValuesFrom>' +
@@ -691,7 +698,7 @@ jsw.owl.xml = {
          * Returns OWL/XML representation for the given OWL class expression.
          * 
          * @param expr Class expression to return the OWL/XML representation for.
-         * @returns OWL/XML representation for the given OWL class expression.
+         * @return OWL/XML representation for the given OWL class expression.
          */
         function writeClassExpr(expr) {
             switch (expr.type) {
@@ -711,7 +718,7 @@ jsw.owl.xml = {
          * 
          * @param axiom Class axiom.
          * @param elementName Name of the XML element to use.
-         * @returns OWL/XML representation for the given OWL class axiom.
+         * @return OWL/XML representation for the given OWL class axiom.
          */
         function writeClassAxiom(axiom, elementName) {
             var args = axiom.args,
@@ -719,7 +726,8 @@ jsw.owl.xml = {
                 argIndex,
                 owlXml = '<' + elementName + '>';
         
-            for (argIndex = 0; argIndex < argCount; argIndex++) {
+            for (argIndex = 0; argIndex < argCount; argIndex += 1) {
+
                 owlXml += writeClassExpr(args[argIndex]);
             }
         
@@ -731,7 +739,7 @@ jsw.owl.xml = {
          * Returns OWL/XML representation for the given OWL ObjectPropertyChain expression.
          * 
          * @param expr OWL ObjectPropertyChain expression to return the OWL/XML representation for.
-         * @returns OWL/XML representation for the given OWL ObjectPropertyChain expression.
+         * @return OWL/XML representation for the given OWL ObjectPropertyChain expression.
          */
         function writeOpropChain(expr) {
             var args = expr.args,
@@ -739,7 +747,7 @@ jsw.owl.xml = {
                 argIndex,
                 owlXml = '<ObjectPropertyChain>';
         
-            for (argIndex = 0; argIndex < argCount; argIndex++) {
+            for (argIndex = 0; argIndex < argCount; argIndex += 1) {
                 owlXml += writeEntity(args[argIndex], 'ObjectProperty');
             }
         
@@ -751,7 +759,7 @@ jsw.owl.xml = {
           * Returns OWL/XML representation for the given OWL SubObjectPropertyOf axiom.
           * 
           * @param expr OWL SubObjectPropertyOf axiom to return the OWL/XML representation for.
-          * @returns OWL/XML representation for the given OWL SubObjectPropertyOf axiom.
+          * @return OWL/XML representation for the given OWL SubObjectPropertyOf axiom.
           */
         function writeOpropSubAxiom(axiom) {
             var owlXml = '<SubObjectPropertyOf>';
@@ -773,7 +781,7 @@ jsw.owl.xml = {
          * Returns OWL/XML representation for the given OWL EquivalentObjectProperties axiom.
          * 
          * @param axiom An object representing EquivalentObjectProperties axiom.
-         * @returns OWL/XML representation for the given axiom.
+         * @return OWL/XML representation for the given axiom.
          */
         function writeEqOpropAxiom(axiom) {
             var arg,
@@ -802,7 +810,7 @@ jsw.owl.xml = {
          * 
          * @param axiom An object representing an object property axiom.
          * @param name Name of the OWL/XML element to use for the axiom.
-         * @returns OWL/XML representation for the given axiom.
+         * @return OWL/XML representation for the given axiom.
          */
         function writeOpropAxiom(axiom, name) {
             return '<' + name + '>' +
@@ -814,7 +822,7 @@ jsw.owl.xml = {
          * Returns an OWL/XML string representing the given OWL ObjectPropertyAssertion statement.
          *
          * @param assertion OWL ObjectPropertyAssertion statement.
-         * @returns Fragment of OWL/XML representing the given statement.
+         * @return Fragment of OWL/XML representing the given statement.
          */
         function writeOpropAssertion(assertion) {
             return '<ObjectPropertyAssertion>' + 
@@ -828,7 +836,7 @@ jsw.owl.xml = {
          * Returns an OWL/XML string representing the given OWL ClassAssertion statement.
          *
          * @param assertion OWL ClassAssertion statement.
-         * @returns Fragment of OWL/XML representing the given statement.
+         * @return Fragment of OWL/XML representing the given statement.
          */
         function writeClassAssertion(assertion) {
             return '<ClassAssertion>' +
@@ -842,7 +850,7 @@ jsw.owl.xml = {
          *
          * @param prefixName Name of the prefix.
          * @param prefixIri IRI of the prefix.
-         * @returns Fragment of OWL/XML with the definition of the prefix.
+         * @return Fragment of OWL/XML with the definition of the prefix.
          */
         function writePrefixDefinition(prefixName, prefixIri) {
             return '<Prefix name="' + prefixName + '" IRI="' + prefixIri + '"/>';
@@ -858,7 +866,7 @@ jsw.owl.xml = {
         }
 
         // And then output axioms/facts.
-        for (axiomIndex = 0; axiomIndex < axiomCount; axiomIndex++) {
+        for (axiomIndex = 0; axiomIndex < axiomCount; axiomIndex += 1) {
             axiom = axioms[axiomIndex];
         
             switch (axiom.type) {
@@ -969,7 +977,7 @@ jsw.rdf.Query.prototype = {
      * Returns IRI for the prefix with the given name in the query.
      *
      * @param prefixName Name of the prefix.
-     * @returns IRI associated with the given prefix name in the query or null if no prefix with the
+     * @return IRI associated with the given prefix name in the query or null if no prefix with the
      * given name is defined.
      */
     getPrefixIri: function (prefixName) {
@@ -1042,9 +1050,10 @@ jsw.sparql = {
      *
      * @param prefix Prefix part of the name.
      * @param localName Local part of the name.
-     * @returns IRI reference represented by the given prefix name.
+     * @return IRI reference represented by the given prefix name.
      */
     expandPrefixedName: function (prefix, localName, query) {
+
         var iri;
 
         if (!prefix && !localName) {
@@ -1064,9 +1073,7 @@ jsw.sparql = {
         return iri + localName;
     },
 
-    /**
-     * Initializes regular expressions used by parser.
-     */
+    /** Initializes regular expressions used by parser. */
     init: function () {
         var pnCharsBase = "A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D" +
             "\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF" +
@@ -1105,7 +1112,7 @@ jsw.sparql = {
      * Parses the given SPARQL string into the query. 
      * 
      * @param queryTxt SPARQL string to parse into the query.
-     * @returns An object representing the query parsed.
+     * @return An object representing the query parsed.
      */
     parse: function (queryTxt) {
         var iri, object, predicate, prefix, query, subject, token, tokens, tokenCount, 
@@ -1121,7 +1128,7 @@ jsw.sparql = {
         tokenIndex = 0;
 
         if (tokens[tokenIndex].toUpperCase() === 'BASE') {
-            tokenIndex++;
+            tokenIndex += 1;
             
             query.baseIri = this.parseAbsoluteIri(tokens[tokenIndex]);
             
@@ -1129,7 +1136,7 @@ jsw.sparql = {
                 throw 'BASE statement does not contain a valid IRI reference!';
             }
 
-            tokenIndex++;
+            tokenIndex += 1;
         }
 
         // Read all PREFIX statements...
@@ -1140,7 +1147,7 @@ jsw.sparql = {
                 break;
             }
 
-            tokenIndex++;
+            tokenIndex += 1;
 
             if (tokenIndex === tokenCount) {
                 throw 'Prefix name expected, but end of the query text found!';
@@ -1152,7 +1159,7 @@ jsw.sparql = {
                 throw 'Token "' + token + '" does not represent a valid IRI prefix!';
             }
 
-            tokenIndex++;
+            tokenIndex += 1;
             
             if (tokenIndex === tokenCount) {
                 throw 'Prefix IRI expected, but end of the query text found!';
@@ -1166,7 +1173,7 @@ jsw.sparql = {
 
             query.addPrefix(prefix, iri);
 
-            tokenIndex++;
+            tokenIndex += 1;
         }
         
         // Parse SELECT clause.
@@ -1176,7 +1183,7 @@ jsw.sparql = {
             throw 'SELECT statement expected, but "' + token + '" was found!';
         }
 
-        tokenIndex++;
+        tokenIndex += 1;
         
         if (tokenIndex === tokenCount) {
             throw 'DISTINCT/REDUCED or variable declaration expected after "SELECT", but the end ' +
@@ -1187,10 +1194,10 @@ jsw.sparql = {
 
         if (token === 'DISTINCT') {
             query.distinctResults = true;
-            tokenIndex++;
+            tokenIndex += 1;
         } else if (token === 'REDUCED') {
             query.reducedResults = true;
-            tokenIndex++;
+            tokenIndex += 1;
         }
 
         if (tokenIndex === tokenCount) {
@@ -1201,7 +1208,7 @@ jsw.sparql = {
         token = tokens[tokenIndex];
 
         if (token === '*') {
-            tokenIndex++;
+            tokenIndex += 1;
 
             token = tokens[tokenIndex];
         } else {
@@ -1223,7 +1230,7 @@ jsw.sparql = {
                     throw 'The token "' + token + '" does not represent the valid variable!';
                 }
 
-                tokenIndex++;
+                tokenIndex += 1;
             }
 
             if (vars.length === 0) {
@@ -1242,7 +1249,7 @@ jsw.sparql = {
                 throw 'WHERE clause should be surrounded with "{}"!';
             }
         } else if (token === '{') {
-            tokenIndex++;
+            tokenIndex += 1;
         } else {
             throw 'WHERE clause was expected, but "' + token + '" was found!';
         }
@@ -1269,8 +1276,8 @@ jsw.sparql = {
                     throw 'Subject variable or term was expected but "' + token + '" was found!';
                 }
 
-                tokenIndex++;
-                valueToRead++;
+                tokenIndex += 1;
+                valueToRead += 1;
 
                 if (tokenIndex === tokenCount) {
                     throw 'Predicate of the RDF triple expected, reached the end of text instead!';
@@ -1282,8 +1289,8 @@ jsw.sparql = {
                     throw 'Predicate verb was expected but "' + token + '" was found!';
                 }
 
-                tokenIndex++;
-                valueToRead++;
+                tokenIndex += 1;
+                valueToRead += 1;
 
                 if (tokenIndex === tokenCount) {
                     throw 'Object of the RDF triple expected, reached the end of text instead!';
@@ -1298,20 +1305,20 @@ jsw.sparql = {
                 query.addTriple(subject, predicate, object);
 
                 valueToRead = 0;
-                tokenIndex++;
+                tokenIndex += 1;
 
                 switch (tokens[tokenIndex]) {
                 case '.':
                     valueToRead = 0;
-                    tokenIndex++;
+                    tokenIndex += 1;
                     break;
                 case ';':
                     valueToRead = 1;
-                    tokenIndex++;
+                    tokenIndex += 1;
                     break;
                 case ',':
                     valueToRead = 2;
-                    tokenIndex++;
+                    tokenIndex += 1;
                     break;
                 }
             }
@@ -1321,22 +1328,23 @@ jsw.sparql = {
             throw '"}" expected but the end of query text found!';
         }
 
-        tokenIndex++;
+        tokenIndex += 1;
 
         if (tokenIndex === tokenCount) {
             return query;
         }
     
         if (tokens[tokenIndex].toUpperCase() === 'ORDER') {
-            tokenIndex++;
+            tokenIndex += 1;
 
             token = tokens[tokenIndex];
+
 
             if (token.toUpperCase() !== 'BY') {
                 throw '"BY" expected after "ORDER", but "' + token + '" was found!';
             }
 
-            tokenIndex++;
+            tokenIndex += 1;
 
             while (tokenIndex < tokenCount) {
                 token = tokens[tokenIndex];
@@ -1352,7 +1360,7 @@ jsw.sparql = {
                 }
 
                 query.orderBy.push(variable);
-                tokenIndex++;
+                tokenIndex += 1;
             }
         }
 
@@ -1361,7 +1369,7 @@ jsw.sparql = {
             
             // Parse LIMIT clause.
             if (token === 'LIMIT') {
-                tokenIndex++;
+                tokenIndex += 1;
 
                 if (tokenIndex === tokenCount) {
                     throw 'Integer expected after "LIMIT", but the end of query text found!';
@@ -1374,10 +1382,10 @@ jsw.sparql = {
                     throw 'Integer expected after "LIMIT", but "' + token + '" found!';
                 }
 
-                tokenIndex++;
+                tokenIndex += 1;
             } else if (token === 'OFFSET') {
                 // Parse OFFSET clause.
-                tokenIndex++;
+                tokenIndex += 1;
 
                 if (tokenIndex === tokenCount) {
                     throw 'Integer expected after "OFFSET", but the end of query text found!';
@@ -1390,7 +1398,7 @@ jsw.sparql = {
                     throw 'Integer expected after "OFFSET", but "' + token + '" found!';
                 }
 
-                tokenIndex++;
+                tokenIndex += 1;
             } else {
                 throw 'Unexpected token "' + token + '" found!';
             }
@@ -1403,7 +1411,7 @@ jsw.sparql = {
      * Parses the given string into the absolute IRI.
      *
      * @param token String containing the IRI.
-     * @returns Absolute IRI parsed from the string or null if the given string does not represent
+     * @return Absolute IRI parsed from the string or null if the given string does not represent
      * an absolute IRI.
      */
     parseAbsoluteIri: function (token) {
@@ -1423,7 +1431,7 @@ jsw.sparql = {
      *
      * @param token String containing the IRI.
      * @param baseIri IRI to use for resolving relative IRIs.
-     * @returns Object representing the IRI parsed or null if the given string does not represent an
+     * @return Object representing the IRI parsed or null if the given string does not represent an
      * IRI.
      */
     parseIriRef: function (token, baseIri) {
@@ -1454,7 +1462,7 @@ jsw.sparql = {
      * Parses the given string into a literal.
      *
      * @param token String containing the literal.
-     * @returns Literal parsed from the string or null if the token does not represent a valid
+     * @return Literal parsed from the string or null if the token does not represent a valid
      * literal.
      */
     parseLiteral: function (token, query) {
@@ -1467,7 +1475,7 @@ jsw.sparql = {
         matches = token.match(this.rdfLiteralRegExp);
 
         if (matches) {
-            for (matchIndex = 1; matchIndex <= 4; matchIndex++) {
+            for (matchIndex = 1; matchIndex <= 4; matchIndex += 1) {
                 value = matches[matchIndex];
 
                 if (value) {
@@ -1535,7 +1543,7 @@ jsw.sparql = {
      * Parses the given string into the object representing some value found in the order by clause.
      *
      * @param token String to parse.
-     * @returns Object representing the order by value parsed or null if token does not reperesent
+     * @return Object representing the order by value parsed or null if token does not reperesent
      * a valid order by value.
      */
     parseOrderByValue: function (token) {
@@ -1574,7 +1582,7 @@ jsw.sparql = {
      *
      * @param token String containing prefixed name.
      * @param query Query object with defined prefixes, which can be used for name expansion.
-     * @returns Object representing the prefixed name parsed or null if the token is not a prefixed
+     * @return Object representing the prefixed name parsed or null if the token is not a prefixed
      * name.
      */
     parsePrefixedName: function (token, query) {
@@ -1600,7 +1608,7 @@ jsw.sparql = {
      * Parses the given string into the string representing the prefix name.
      *
      * @param token String containing the prefix name.
-     * @returns Prefix name parsed or null if the given string does not contain a prefix name.
+     * @return Prefix name parsed or null if the given string does not contain a prefix name.
      */
     parsePrefixName: function (token) {
         if (!this.prefixRegExp) {
@@ -1615,7 +1623,7 @@ jsw.sparql = {
      *
      * @param token String to parse into the variable or term.
      * @param query Reference to the query for which the variable or term is parsed.
-     * @returns Object representing the variable or a term parsed.
+     * @return Object representing the variable or a term parsed.
      */
     parseVarOrTerm: function (token, query) {
         // See if it is a variable.
@@ -1651,9 +1659,10 @@ jsw.sparql = {
 
     /**
      * Parses a token into the variable.
+
      *
      * @param token Contains the text representing SPARQL variable.
-     * @returns Object representing the SPARQL variable, or null if the given token does not
+     * @return Object representing the SPARQL variable, or null if the given token does not
      * represent a valid SPARQL variable.
      */
     parseVar: function (token) {
@@ -1676,7 +1685,7 @@ jsw.sparql = {
      *
      * @param token String containing a SPARQL verb.
      * @param query Reference to the query for which the variable or term is parsed.
-     * @returns Object representing the SPARQL verb, or null if the given token does not represent a
+     * @return Object representing the SPARQL verb, or null if the given token does not represent a
      * valid SPARQL verb.
      */
     parseVerb: function (token, query) {
@@ -1730,7 +1739,7 @@ jsw.TrimQueryStorage.prototype = {
      * Answers the given RDF query.
      *
      * @param query RDF query to anwer.
-     * @returns Data set containing the results matching the query.
+     * @return Data set containing the results matching the query.
      */
     answerQuery: function (query) {
         var sql = this.createSql(query);
@@ -1775,7 +1784,7 @@ jsw.TrimQueryStorage.prototype = {
     /**
      * Creates an object which can be used for sending queries against the database.
      *
-     * @returns Object which can be used for sending queries against the database.
+     * @return Object which can be used for sending queries against the database.
      */
     createQueryLang: function () {
         return TrimPath.makeQueryLang({
@@ -1791,7 +1800,7 @@ jsw.TrimQueryStorage.prototype = {
      * Returns an SQL representation of the given RDF query.
      *
      * @param query jsw.rdf.Query to return the SQL representation for.
-     * @returns SQL representation of the given RDF query.
+     * @return SQL representation of the given RDF query.
      */
     createSql: function (query) {
         var from, limit, objectField, orderBy, predicate, predicateType, predicateValue, rdfTypeIri,
@@ -1837,7 +1846,7 @@ jsw.TrimQueryStorage.prototype = {
         triples = query.triples;
         tripleCount = triples.length;
 
-        for (tripleIndex = 0; tripleIndex < tripleCount; tripleIndex++) {
+        for (tripleIndex = 0; tripleIndex < tripleCount; tripleIndex += 1) {
             triple = triples[tripleIndex];
 
             predicate = triple.predicate;
@@ -1886,7 +1895,7 @@ jsw.TrimQueryStorage.prototype = {
         varCount = vars.length;
 
         if (varCount > 0) {
-            for (varIndex = 0; varIndex < varCount; varIndex++) {
+            for (varIndex = 0; varIndex < varCount; varIndex += 1) {
                 variable = vars[varIndex].value;
                 varField = varFields[variable];
 
@@ -1920,7 +1929,7 @@ jsw.TrimQueryStorage.prototype = {
         vars = query.orderBy;
         varCount = vars.length;
 
-        for (varIndex = 0; varIndex < varCount; varIndex++) {
+        for (varIndex = 0; varIndex < varCount; varIndex += 1) {
             variable = vars[varIndex];
 
             if (variable.type !== exprTypes.VAR) {
@@ -1937,6 +1946,7 @@ jsw.TrimQueryStorage.prototype = {
         limit = '';
 
         if (query.limit !== 0) {
+
             limit = ' LIMIT ';
             if (query.offset !== 0) {
                 limit += query.offset + ', ';
@@ -1967,12 +1977,12 @@ jsw.owl.Reasoner = function (ontology) {
 
     clock.start();
     normalizedOntology = this.normalizeOntology(ontology);
-    this.timeInfo.normalization = clock.stop(); 
+    this.timeInfo.normalization = clock.stop();
    
     clock.start();
     objectPropertySubsumers = this.buildObjectPropertySubsumerSets(normalizedOntology);
     this.timeInfo.objectPropertySubsumption = clock.stop();
-   
+
     clock.start();
     classSubsumers = this.buildClassSubsumerSets(normalizedOntology, objectPropertySubsumers);
     this.timeInfo.classification = clock.stop();
@@ -2007,7 +2017,7 @@ jsw.owl.Reasoner.prototype = {
      * Builds an object property subsumption relation implied by the ontology.
      * 
      * @param ontology Normalized ontology to be use for building the subsumption relation. 
-     * @returns 2-tuple storage hashing the object property subsumption relation implied by the 
+     * @return 2-tuple storage hashing the object property subsumption relation implied by the 
      * ontology.
      */
     buildObjectPropertySubsumerSets: function (ontology) {
@@ -2092,7 +2102,7 @@ jsw.owl.Reasoner.prototype = {
      * normalized.
      * @param objectPropertySubsumers 2-tuple storage hashing the object property subsumption
      * relation implied by the ontology. 
-     * @returns 2-tuple storage containing the class subsumption relation implied by the ontology.
+     * @return 2-tuple storage containing the class subsumption relation implied by the ontology.
      */
     buildClassSubsumerSets: function (ontology, objectPropertySubsumers) {
         var a,
@@ -2201,6 +2211,7 @@ jsw.owl.Reasoner.prototype = {
         }
       
         /**
+
          * Adds instructions 
          * 
          * 'Label B with C' 
@@ -2208,6 +2219,7 @@ jsw.owl.Reasoner.prototype = {
          * to the queue of B for all axioms like
          * 
          * E P.A <= C.
+
          * 
          * @param p IRI of the object property to look for in axioms.
          * @param a IRI of the class to look for in the left part of axioms.
@@ -2468,6 +2480,7 @@ jsw.owl.Reasoner.prototype = {
          
             // Get a queue which is not empty.
             for (node in queues) {
+
                 queue = queues[node];
             
                 if (!queue.isEmpty()) {
@@ -2509,7 +2522,7 @@ jsw.owl.Reasoner.prototype = {
      * q or s can be obtained efficiently.
      * 
      * @param ontology Normalized ontology containing the axioms to hash.
-     * @returns Object hashing all object property chain subsumptions.
+     * @return Object hashing all object property chain subsumptions.
      */
     buildChainSubsumerSets: function (ontology) {
         var args, axiom, axioms, axiomIndex, chainSubsumer, exprTypes, leftSubsumers, leftOprop,
@@ -2558,7 +2571,7 @@ jsw.owl.Reasoner.prototype = {
      * Returns a PairStorage containing the explicit object property subsumptions present in the
      * ontology.
      *
-     * @returns PairStorage containing an explicit object property subsumptions present in the
+     * @return PairStorage containing an explicit object property subsumptions present in the
      * ontology.
      */
     getExplicitObjectPropertySubsumptions: function () {
@@ -2589,7 +2602,8 @@ jsw.owl.Reasoner.prototype = {
     /**
      * Returns a PairStorage containing the explicit class subsumptions present in the ontology.
      *
-     * @returns PairStorage containing an explicit class subsumption relation present in the
+     * @return PairStorage containing an explicit class subsumption relation present in the
+
      * ontology.
      */
     getExplicitClassSubsumptions: function () {
@@ -2644,7 +2658,7 @@ jsw.owl.Reasoner.prototype = {
      * @param ontology Normalized ontology containing the ABox to rewrite.
      * @param objectPropertySubsumers 2-tuple storage hashing the object property subsumption
      * relation implied by the ontology.
-     * @returns An object containing the rewritten ABox.
+     * @return An object containing the rewritten ABox.
      */
     rewriteAbox: function (ontology, objectPropertySubsumers, classSubsumers) {
         var axioms = ontology.axioms,
@@ -2655,8 +2669,8 @@ jsw.owl.Reasoner.prototype = {
       
         /**
          * Puts class assertions implied by the ontology into the database.
-         * rewriteAbox
-         * @returns Array containing all class assertions implied by the ontology. 
+         * 
+         * @return Array containing all class assertions implied by the ontology. 
          */
         function rewriteClassAssertions() {
             var axiom, axiomIndex, classFactType, classIri, individualClasses, individualIri,
@@ -2699,7 +2713,7 @@ jsw.owl.Reasoner.prototype = {
         /** 
          * Puts role assertions implied by the ontology into the database.
          *
-         * @returns Array containing all object property assertions implied by the ontology.
+         * @return Array containing all object property assertions implied by the ontology.
          */
         function rewriteObjectPropertyAssertions() {
             var args, axiom, axiomIndex, centerInd, chainSubsumer, changesHappened, opropSubsumer,
@@ -2728,6 +2742,7 @@ jsw.owl.Reasoner.prototype = {
             
                 for (opropSubsumer in subsumers.get(oprop)) {
                     storage.add(opropSubsumer, leftInd, rightInd);
+
                 }
             } while (axiomIndex--);
          
@@ -2789,7 +2804,7 @@ jsw.owl.Reasoner.prototype = {
      * Answers the given user query. 
      * 
      * @param query An object representing a query to be answered.
-     * @returns True if the ontology satisfies the query, false otherwise.
+     * @return True if the ontology satisfies the query, false otherwise.
      */
     answerQuery: function (query) {
         if (!query) {
@@ -2802,11 +2817,11 @@ jsw.owl.Reasoner.prototype = {
     /**
      * Normalizes the given ontology.
      * 
-     * @returns New ontology which is a normalized version of the given one.
+     * @return New ontology which is a normalized version of the given one.
      */
     normalizeOntology: function (ontology) {  
         var axiom, axioms, axiomIndex, lastRuleIndex, queue, exprTypes, resultAxioms,
-            resultOntology, rules, ruleIndex;
+            resultOntology, rules, ruleIndex, instanceClasses;
       
         /**
          * Copies all entities from the source ontology to the result ontology.
@@ -2830,9 +2845,61 @@ jsw.owl.Reasoner.prototype = {
             }
         }
 
+        /**
+         * For all object property assertions in the form a R b, where a and b are individuals and R
+         * is an object property, adds axioms A <= E R.B to the normalized ontology, where A and B
+         * represent nominals {a} and {b}.
+         */
+        function completeObjectPropertyAssertions() {
+            var axiomIndex, classType, reqAxiomType, resultAxioms, resultAxiomType, resultExprType,
+                statement;
+            
+            /**
+             * Returns nominal class object representing the given individual. If the class object
+             * has not been created for the given individual, creates it.
+             *
+             * @param individual Object representing individual to return the nominal class for.
+             * @return Nominal class object for the given individual.
+             */
+            function getIndividualClass(individual) {
+                var individualIri, newClass;
+
+                individualIri = individual.IRI;
+                newClass = instanceClasses[individualIri];
+
+                if (!newClass) {
+                    newClass = resultOntology.createEntity(classType);
+                    instanceClasses[individualIri] = newClass;
+                }
+
+                return newClass;
+            }
+
+            classType = exprTypes.ET_CLASS;
+            reqAxiomType = exprTypes.FACT_OPROP;
+            resultAxiomType = exprTypes.AXIOM_CLASS_SUB;
+            resultAxioms = resultOntology.axioms;
+
+            for (axiomIndex = axioms.length; axiomIndex--;) {
+                statement = axioms[axiomIndex];
+
+                if (statement.type === reqAxiomType) {           
+                    resultAxioms.push({
+                        'type': resultAxiomType,
+                        'args': [getIndividualClass(statement.leftIndividual), {
+                            'type': resultExprType,
+                            'opropExpr': statement.objectProperty,
+                            'classExpr': getIndividualClass(statement.rightIndividual)
+                        }]
+                    });
+                }
+            }
+        }
+
         axioms = ontology.axioms;
         exprTypes = jsw.owl.EXPRESSION_TYPES;
         resultOntology = new jsw.owl.Ontology();
+        instanceClasses = {};
 
         rules = [
             /**
@@ -2848,7 +2915,7 @@ jsw.owl.Reasoner.prototype = {
              * where Ui are the new object properties introduced.
              * 
              * @param axiom Axiom to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or 
+             * @return Set of axioms which are result of applying the rule to the given axiom or 
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -2878,7 +2945,7 @@ jsw.owl.Reasoner.prototype = {
          
                 lastOpropIndex = srcChain.length - 1;
          
-                for (opropIndex = 2; opropIndex < lastOpropIndex; opropIndex++) {
+                for (opropIndex = 2; opropIndex < lastOpropIndex; opropIndex += 1) {
                     newOprop = resultOntology.createEntity(opropType);
                     normalized.push({
                         type: reqAxiomType,
@@ -2916,7 +2983,7 @@ jsw.owl.Reasoner.prototype = {
              * .
              * 
              * @param axiom Axiom to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or
+             * @return Set of axioms which are result of applying the rule to the given axiom or
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -2970,7 +3037,8 @@ jsw.owl.Reasoner.prototype = {
              * .
              * 
              * @param axiom Axiom to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or 
+             * @return Set of axioms which are result of applying the rule to the given axiom or 
+
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -3012,7 +3080,7 @@ jsw.owl.Reasoner.prototype = {
              * where A is a new atomic class introduced.
              * 
              * @param axiom Axiom to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or 
+             * @return Set of axioms which are result of applying the rule to the given axiom or 
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -3050,7 +3118,7 @@ jsw.owl.Reasoner.prototype = {
              * Ci in the original axiom.
              * 
              * @param axiom Axiom to try to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or 
+             * @return Set of axioms which are result of applying the rule to the given axiom or 
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -3112,11 +3180,12 @@ jsw.owl.Reasoner.prototype = {
       
             /**
              * Checks if the given axiom is in the form E P.A <= B, where A is a complex class
+
              * expression. If this is the case converts the axiom into two equivalent axioms 
              * A1 <= A and E P.A1 <= B, where A1 is a new atomic class.
              * 
              * @param axiom Axiom to try to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or 
+             * @return Set of axioms which are result of applying the rule to the given axiom or 
              * null if the rule could not be applied.
              */
             function (axiom) {         
@@ -3157,7 +3226,7 @@ jsw.owl.Reasoner.prototype = {
              * B1 <= B and A <= E P.B1, where B1 is a new atomic class.
              * 
              * @param axiom Axiom to try to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or
+             * @return Set of axioms which are result of applying the rule to the given axiom or
              * null if the rule could not be applied.
              */
             function (axiom) {
@@ -3195,8 +3264,9 @@ jsw.owl.Reasoner.prototype = {
              * expressions A1 .. An. If this is the case, returns a set of normalized axioms
              * Ai n Aj <= {}, for all i <> j.
              *
+
              * @param statement Statement to try to apply the rule to.
-             * @returns Set of statements which are the result of applying the rule to the given
+             * @return Set of statements which are the result of applying the rule to the given
              * statement or null if the rule could not be applied.
              */
             function (statement) {
@@ -3240,7 +3310,7 @@ jsw.owl.Reasoner.prototype = {
              * P o P <= P.
              * 
              * @param statement Axiom to try to apply the rule to.
-             * @returns Set of axioms which are result of applying the rule to the given axiom or
+             * @return Set of axioms which are result of applying the rule to the given axiom or
              * null if the rule could not be applied.
              */
             function (statement) {
@@ -3268,27 +3338,39 @@ jsw.owl.Reasoner.prototype = {
              * equivalent statements a <= B and B <= A, where B is a new atomic class.
              *
              * @param statement Statement to try to apply the rule to.
-             * @returns Set of statements which are result of applying the rule to the given
+             * @return Set of statements which are result of applying the rule to the given
              * statement or null if the rule could not be applied.
              */
             function (statement) {
-                var classType, newClass, reqAxiomType;
+                var classExpr, classType, individual, individualIri, newClass, reqAxiomType;
             
                 classType = exprTypes.ET_CLASS;
                 reqAxiomType = exprTypes.FACT_CLASS;
 
-                if (statement.type !== reqAxiomType || statement.classExpr.type === classType) {
+                if (statement.type !== reqAxiomType) {
                     return null;
                 }
          
-                newClass = resultOntology.createEntity(classType);
+                classExpr = statement.classExpr;
+                individual = statement.individual;
+                individualIri = individual.IRI;
+                newClass = instanceClasses[individualIri];
+
+                if (newClass && classExpr.type == classType && classExpr.IRI == newClass.IRI) {
+                    // The assertion is already normalized if the class is the one generated
+                    // previously.
+                    return null;
+                } else if (!newClass) {
+                    newClass = resultOntology.createEntity(classType);
+                    instanceClasses[individualIri] = newClass;
+                }
          
                 return [{
                     'type': exprTypes.AXIOM_CLASS_SUB,
-                    'args': [newClass, statement.classExpr]
+                    'args': [newClass, classExpr]
                 }, {
                     'type': reqAxiomType,
-                    'individual': statement.individual,
+                    'individual': individual,
                     'classExpr': newClass
                 }];
             }
@@ -3341,12 +3423,15 @@ jsw.owl.Reasoner.prototype = {
             }
         }
       
+        completeObjectPropertyAssertions();
+
         return resultOntology;
     } 
 };
 
 /**
  * Onotlogy represents a set of statements about some world.
+
  */
 jsw.owl.Ontology  = function () {	
     var exprTypes = jsw.owl.EXPRESSION_TYPES,
@@ -3368,6 +3453,7 @@ jsw.owl.Ontology  = function () {
     this.axioms = [];
     
     /**
+
      * Contains all prefixes used in abbreviated entity IRIs in the ontology.
      */
     this.prefixes = {};
@@ -3411,7 +3497,7 @@ jsw.owl.Ontology.prototype = {
      * Allows generating a new unique IRI for the entity of the given type.
      * 
      * @param type Type of the entity to generate a new unique IRI for.
-     * @returns New unique IRI.
+     * @return New unique IRI.
      */
     createNewIRI: function (type) {
         var entities,
@@ -3428,7 +3514,7 @@ jsw.owl.Ontology.prototype = {
          
         do {
             iri = entityPrefix + nextEntityNo;
-	        nextEntityNo++;
+	        nextEntityNo += 1;
 	    } while (entities[iri]);
          
         this.nextEntityNos[type] = nextEntityNo;
@@ -3440,7 +3526,7 @@ jsw.owl.Ontology.prototype = {
      * 
      * @param type Type of the entity to create.
      * @param iri (optional) IRI of the new entity. If not given, generates a new IRI.
-     * @returns The new entity of the given type with the name automatically generated.
+     * @return The new entity of the given type with the name automatically generated.
      */
     createEntity: function (type, iri) {
         var entity;
@@ -3459,7 +3545,7 @@ jsw.owl.Ontology.prototype = {
 	    };
 
         this.entities[type][iri] = entity;
-        this.entityCount[type]++;
+        this.entityCount[type] += 1;
         return entity;
     },
    
@@ -3467,7 +3553,7 @@ jsw.owl.Ontology.prototype = {
      * Checks if the ontology contains any references to the class with the given IRI.
      * 
      * @param iri IRI of the class to check.
-     * @returns True if the ontology has reverences to the class, false otherwise.
+     * @return True if the ontology has reverences to the class, false otherwise.
      */
     containsClass: function (iri) {
         if (this.entities[this.exprTypes.ET_CLASS][iri]) {
@@ -3478,10 +3564,11 @@ jsw.owl.Ontology.prototype = {
     },
    
     /**
+
      * Checks if the ontology contains any references to the object property with the given IRI.
      * 
      * @param iri IRI of the object property to check.
-     * @returns True if the ontology has reverences to the object property, false otherwise.
+     * @return True if the ontology has reverences to the object property, false otherwise.
      */
     containsObjectProperty: function (iri) {
         if (this.entities[this.exprTypes.ET_OPROP][iri]) {
@@ -3494,7 +3581,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns number of classes in the ontology.
      * 
-     * @returns Number of classes in the ontology.
+     * @return Number of classes in the ontology.
      */
     getClassCount: function () {
         return this.entityCount[this.exprTypes.ET_CLASS];
@@ -3503,7 +3590,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns an 'associative array' of all classes in the ontology.
      * 
-     * @returns 'Associative array' of all classes in the ontology.
+     * @return 'Associative array' of all classes in the ontology.
      */
     getClasses: function () {
 
@@ -3515,7 +3602,7 @@ jsw.owl.Ontology.prototype = {
      * type.
      *
      * @param type Integer specifying the type of entity to get the name prefix for.
-     * @returns Prefix to be used in the automatically generated nams for entities of the given
+     * @return Prefix to be used in the automatically generated nams for entities of the given
      * type.
      */
     getEntityAutoPrefix: function (type) {
@@ -3536,7 +3623,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns number of object properties in the ontology.
      * 
-     * @returns Number of object properties in the ontology.
+     * @return Number of object properties in the ontology.
      */
     getObjectPropertyCount: function () {
         return this.entityCount[this.exprTypes.ET_OPROP];
@@ -3545,7 +3632,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns an 'associative array' of all object properties in the ontology.
      * 
-     * @returns 'Associative array' of all object properties in the ontology.
+     * @return 'Associative array' of all object properties in the ontology.
      */
     getObjectProperties: function () {
         return this.entities[this.exprTypes.ET_OPROP];
@@ -3554,7 +3641,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns number of individuals in the ontology.
      * 
-     * @returns Number of individuals in the ontology.
+     * @return Number of individuals in the ontology.
      */
     getIndividualCount: function () {
         return this.entityCount[this.exprTypes.ET_INDIVIDUAL]; 
@@ -3563,7 +3650,7 @@ jsw.owl.Ontology.prototype = {
    /**
     * Returns an 'associative array' of all individuals in the ontology.
     * 
-    * @returns 'Associative array' of all individuals in the ontology.
+    * @return 'Associative array' of all individuals in the ontology.
     */
     getIndividuals: function () {
         return this.entities[this.exprTypes.ET_INDIVIDUAL];
@@ -3574,7 +3661,7 @@ jsw.owl.Ontology.prototype = {
      *
      * @param types (optional) Array containing types of axioms to count. If the argument is not
      * provided, the total number of axioms is returned.
-     * @returns Number of axioms of the given types in the ontology.
+     * @return Number of axioms of the given types in the ontology.
      */
     getSize: function (types) {
         var axiom, axioms, axiomIndex, lastTypeIndex, size, typeIndex;
@@ -3595,7 +3682,7 @@ jsw.owl.Ontology.prototype = {
          
             do {
                 if (axiom.type === types[typeIndex]) {
-                    size++;
+                    size += 1;
                     break;
                 }
             } while (typeIndex--);
@@ -3607,7 +3694,7 @@ jsw.owl.Ontology.prototype = {
     /**
      * Returns the size of ABox of the ontology.
      * 
-     * @returns Size of the ABox of the ontology.
+     * @return Size of the ABox of the ontology.
      */
     getAboxSize: function () {
         var exprTypes = this.exprTypes;
@@ -3617,8 +3704,9 @@ jsw.owl.Ontology.prototype = {
    
     /**
      * Returns the size of TBox of the ontology.
+
      * 
-     * @returns Size of the TBox of the ontology.
+     * @return Size of the TBox of the ontology.
      */
     getTboxSize: function () {
         var exprTypes = this.exprTypes;
@@ -3629,8 +3717,9 @@ jsw.owl.Ontology.prototype = {
 
     /**
      * Returns the size of RBox of the ontology.
+
      * 
-     * @returns Size of the RBox of the ontology.
+     * @return Size of the RBox of the ontology.
      */   
     getRboxSize: function () {
         return this.getSize([this.exprTypes.AXIOM_OPROP_SUB]);
@@ -3643,7 +3732,7 @@ jsw.util.xml = {
      * Parses string into the XML DOM object in a browser-independent way.
      *
      * @param xml String containing the XML text to parse.
-     * @returns XML DOM object representing the parsed XML.
+     * @return XML DOM object representing the parsed XML.
      */
     parseString: function (xml) {
         var xmlDoc, error;
@@ -3710,7 +3799,7 @@ jsw.util.Queue.prototype = {
     /**
      * Removes the oldest object from the queue and returns it.
      * 
-     * @returns The oldest object in the queue.
+     * @return The oldest object in the queue.
      */
     dequeue: function () {
         var element,
@@ -3723,7 +3812,7 @@ jsw.util.Queue.prototype = {
         }
 
         element = queue[emptyElements];
-        emptyElements++;
+        emptyElements += 1;
   
         // If the queue has more than a half empty elements, shrink it.    
         if (emptyElements << 1 >= queueLength - 1) {
@@ -3745,7 +3834,7 @@ jsw.util.Stopwatch = function () {
     /**
      * Returns textual representation of the last measured period of time.
      *
-     * @returns Textual representation of the last measured period of time.
+     * @return Textual representation of the last measured period of time.
      */
     this.getElapsedTimeAsText = function () {
         var miliseconds = elapsedMs % 1000,
@@ -3773,7 +3862,7 @@ jsw.util.Stopwatch = function () {
     /**
      * Stops measuring the time.
      * 
-     * @returns Textual representation of the measured period of time.
+     * @return Textual representation of the measured period of time.
      */
     this.stop = function () {
         elapsedMs = new Date().getTime() - startTime;
@@ -3814,7 +3903,7 @@ jsw.util.PairStorage.prototype = {
      * @param diffRelation (optional) PairStorage containing the 'difference' relation. If given, 
      * all relations in the hierarchy which are not present in diffRelation will be marked as
      * 'special' in the resulting hierarchy.
-     * @returns Object representing the hierarchy implied by the relation.
+     * @return Object representing the hierarchy implied by the relation.
      */
     buildHierarchy: function (allowedObjects, diffRelation) {
         var child, childCount, childIndex, obj, objInfo, curObj, curObjChildren, hierarchy, names,
@@ -3916,7 +4005,7 @@ jsw.util.PairStorage.prototype = {
          *
          * @param objA Object representing the first class.
          * @param objB Object representing the second class.
-         * @returns 0 if the class names are equal, 1 if the second class name follows the first one
+         * @return 0 if the class names are equal, 1 if the second class name follows the first one
          * in alphabetic order, -1 otherwise.
          */
         function sortFunc(objA, objB) {
@@ -3931,12 +4020,13 @@ jsw.util.PairStorage.prototype = {
             }
         }
 
+
         /**
          * Creates an object to be later inserted into the hierarchy generated.
          *
          * @param name Name of the object to create.
          * @param parentNames (optional) Names of the parent object.
-         * @returns Object to be later inserted into the hierarchy generated.
+         * @return Object to be later inserted into the hierarchy generated.
          */
         function createHierarchyObj(name, parentNames) {
             var equivalent, equivalents, equivalentCount, equivalentIndex, names, parentCount,
@@ -3952,7 +4042,7 @@ jsw.util.PairStorage.prototype = {
             if (shouldCheckSpecial) {
                 parentCount = parentNames.length;
 
-                for (parentIndex = 0; parentIndex < parentCount; parentIndex++) {
+                for (parentIndex = 0; parentIndex < parentCount; parentIndex += 1) {
                     if (!diffRelation.exists(name, parentNames[parentIndex])) {
                         special = true;
                         break;
@@ -3960,12 +4050,12 @@ jsw.util.PairStorage.prototype = {
                 }
             }
 
-            for (equivalentIndex = 0; equivalentIndex < equivalentCount; equivalentIndex++) {
+            for (equivalentIndex = 0; equivalentIndex < equivalentCount; equivalentIndex += 1) {
                 equivalent = equivalents[equivalentIndex];
                 names.push(equivalent);
 
                 if (shouldCheckSpecial) {
-                    for (parentIndex = 0; parentIndex < parentCount; parentIndex++) {
+                    for (parentIndex = 0; parentIndex < parentCount; parentIndex += 1) {
                         if (!diffRelation.exists(equivalent, parentNames[parentIndex])) {
                             special = true;
                             break;
@@ -4044,7 +4134,7 @@ jsw.util.PairStorage.prototype = {
         // Sort names of equivalent classes and children of every class by name.
         childCount = hierarchy.length;
 
-        for (childIndex = 0; childIndex < childCount; childIndex++) {
+        for (childIndex = 0; childIndex < childCount; childIndex += 1) {
             curObj = hierarchy[childIndex];
             curObj.names.sort();
             stack.push(curObj);
@@ -4056,7 +4146,7 @@ jsw.util.PairStorage.prototype = {
 
             childCount = curObjChildren.length;
 
-            for (childIndex = 0; childIndex < childCount; childIndex++) {
+            for (childIndex = 0; childIndex < childCount; childIndex += 1) {
                 child = curObjChildren[childIndex];
 
                 child.names.sort();
@@ -4074,7 +4164,8 @@ jsw.util.PairStorage.prototype = {
      * 
      * @param first First value in the pair.
      * @param second Second value in the pair.
-     * @returns True if the tuple with the given value exists, false otherwise.
+     * @return True if the tuple with the given value exists, false otherwise.
+
      */
     exists: function (first, second) {
         var firstPairs = this.storage[first];
@@ -4092,7 +4183,7 @@ jsw.util.PairStorage.prototype = {
      * 
      * @param first First value in the tuple.
      * @param second Array containing the values for second element in the tuple. 
-     * @returns True if the storage contains all the tuples, false otherwise.
+     * @return True if the storage contains all the tuples, false otherwise.
      */
     existAll: function (first, second) {
         var secondPairs, secondValue;
@@ -4122,7 +4213,7 @@ jsw.util.PairStorage.prototype = {
      * the fixed value of the first element in all pairs.
      * 
      * @param first (optional) The value of the first element of all pairs to be returned.
-     * @returns Object which can be used to access all pairs in the storage.
+     * @return Object which can be used to access all pairs in the storage.
      */
     get: function (first) {
         if (!first) {
@@ -4136,7 +4227,7 @@ jsw.util.PairStorage.prototype = {
 /**
  * Triplet storage can be used to hash 3-tuples by the values in them in some order.
  * 
- * @returns Object which can be used to hash 3-tuples by the values in them in some order.
+ * @return Object which can be used to hash 3-tuples by the values in them in some order.
  */
 jsw.util.TripletStorage = function () {
     /**
@@ -4152,9 +4243,9 @@ jsw.util.TripletStorage.prototype = {
      *  
      * @param first Value of the first element of the returned triplets.
      * @param second (optional) Value of the second element of the returned triplets.
-     * @returns Object containing the triplets requested.
+     * @return Object containing the triplets requested.
      */
-    get: function (first, second) {
+    get: function (first, second, third) {
         var firstTuples;
         
         if (!first) {
@@ -4201,7 +4292,7 @@ jsw.util.TripletStorage.prototype = {
      * @param first Value of the first element in the triplet.
      * @param second Value of the second element in the triplet.
      * @param third Value of the third element in the triplet.
-     * @returns True if the value exists, false otherwise.
+     * @return True if the value exists, false otherwise.
      */
     exists: function (first, second, third) {
         var storage = this.storage,
