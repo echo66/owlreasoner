@@ -39,6 +39,70 @@ TextFile.prototype = {
 };
 
 /**
+ * TableControl component allows to display data stored in the given array in a tabular form.
+ * Each element of array is expected to be an object of the same structure. Property names are used
+ * as column headers.
+ * 
+ * @param dataSet Data set to display as a table.
+ * @param hostId ID of the HTML element to display the table in.
+ * @param tableClass (optional) Name of the CSS class to use for the table generated.
+ * @param noDataMsg (optional) Message to be displayed if the data set is empty.
+ */
+function TableControl(dataSet, hostId, tableClass, noDataMsg) {
+    var host, html, rowCount;
+    
+    host = document.getElementById(hostId);
+    
+    if (!host) {
+        throw 'The host element with ID "' + hostId + ' does not exist in the document!"';
+    }
+
+    if (!noDataMsg) {
+        noDataMsg = 'The data set contains no results!';
+    }
+
+    rowCount = dataSet.length;
+
+    if (rowCount > 0 || !noDataMsg) {
+        html = '<table';
+        
+        if (tableClass) {
+            html += ' class="' + tableClass + '"';
+        }
+        
+        html += '><tr>';
+        row = dataSet[0];
+
+        for (column in row) {
+            if (column && row.hasOwnProperty(column)) {
+                html += '<th>' + column + '</th>';
+            }
+        }
+                        
+        html += '</tr>';
+
+        for (rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+            html += '<tr>';
+
+            row = dataSet[rowIndex];
+            for (column in row) {
+                if (column && row.hasOwnProperty(column)) {
+                    html += '<td>' + row[column] + '</td>';
+                }
+            }
+
+            html += '</tr>';
+        }
+
+        html += '</table>';
+    } else {
+        html = noDataMsg;
+    }
+
+    document.getElementById(hostId).innerHTML = html;    
+};
+
+/**
  * Tab control objects allow to control visibility of panels ('tabs'), based on the user selection.
  * This is analogous to Windows tab control.
  *

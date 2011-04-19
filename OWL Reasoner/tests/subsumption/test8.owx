@@ -1,0 +1,18 @@
+<!-- Tests whether ontology incosistency is found, i.e. a can not belong to both B and C -->
+<Ontology>
+   <ClassAssertion>
+       <Class IRI="B"/>
+       <NamedIndividual IRI="a" />
+   </ClassAssertion>
+   <ClassAssertion>
+       <Class IRI="C"/>
+       <NamedIndividual IRI="a" />
+   </ClassAssertion>
+   <SubClassOf>
+       <ObjectIntersectionOf>
+           <Class IRI="B" />
+           <Class IRI="C" />
+       </ObjectIntersectionOf>
+       <Class abbreviatedIRI="owl:Nothing" />
+   </SubClassOf>
+</Ontology>

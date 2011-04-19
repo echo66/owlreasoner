@@ -1,0 +1,7 @@
+<!-- The only axiom should be removed in the normalized ontology --> 
+<Ontology>
+   <SubClassOf>
+      <Class abbreviatedIRI="owl:Nothing" />
+      <Class IRI="A" />
+   </SubClassOf>
+</Ontology>

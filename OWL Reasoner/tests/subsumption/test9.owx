@@ -1,0 +1,14 @@
+<!-- Tests whether ontology incosistency is found, i.e. a can not belong to both B and C -->
+<Ontology>
+    <SubClassOf>
+        <Class IRI="A"/>
+        <ObjectIntersectionOf>
+            <Class IRI="B" />
+            <Class IRI="C" />
+        </ObjectIntersectionOf>
+    </SubClassOf>
+    <DisjointClasses>
+        <Class IRI="B" />
+        <Class IRI="C" />
+    </DisjointClasses>
+</Ontology>

@@ -54,11 +54,11 @@
 	            Total axioms: <span id="axiomCount">[not processed yet]</span><br />
             </div>
             <div id="classesBox" class="tabBox">
-                Class: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="classTree.showMatches(this.value);"/><br /><br />
+                Search: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="classTree.showMatches(this.value);"/><br /><br />
                 <div id="classHierarchy"></div>
             </div>
             <div id="opropBox" class="tabBox">
-                Object Property: <input type="text" id="opropSearch" placeholder="Start typing here." onkeyup="opropTree.showMatches(this.value);"/><br /><br />
+                Search: <input type="text" id="opropSearch" placeholder="Start typing here." onkeyup="opropTree.showMatches(this.value);"/><br /><br />
                 <div id="opropHierarchy"></div>
             </div>
             <div id="sparqlBox" class="tabBox">
@@ -66,7 +66,10 @@
                 <textarea id="queryText" cols="40" rows="10" placeholder="Please input your SPARQL query here."></textarea>
                 <input type="button" id="queryBtn" value="Execute" onclick="queryBtnClicked();"/>
                 <br/><br />
-                <div id="queryResults"></div>
+                <h4>Results</h4>
+                <span id="queryResultsTime"></span>
+                <br /><br />
+                <div id="queryResults">No query has been executed yet!</div>
             </div>
             <div id="footer">Developed by <a href="mailto:vitaly.stepanov@gmail.com">Vit Stepanovs</a>.<br /> Copyright &copy; <a href="http://www.cs.manchester.ac.uk/" title="School of Computer Science, The University of Manchester">The University of Manchester</a>, 2010-2011.</div>
         </div>
@@ -222,8 +225,7 @@
         
             /** Processes the query from the given string and outputs the result. */
             function queryBtnClicked() {
-                var column, doc, html, query, queryResults, queryTxt, result, row, rowCount,
-                    rowIndex, stopwatch, time;
+                var query, queryTxt, result, stopwatch;
 
                 try {
                     if (!reasoner) {
@@ -236,43 +238,16 @@
                     stopwatch.start();
                     query = jsw.sparql.parse(queryTxt);
                     result = reasoner.answerQuery(query);
-                    time = stopwatch.stop();
               
-                    queryResults = document.getElementById('queryResults');
-                    html = '<h4>Results</h4> (obtained in ' + time + '):<br /><br />';
-                    rowCount = result.length;
-
-                    if (rowCount > 0) {
-                        html += '<table><tr>';
-                        row = result[0];
-
-                        for (column in row) {
-                            if (column && row.hasOwnProperty(column)) {
-                                html += '<th>' + column + '</th>';
-                            }
-                        }
-                        
-                        html += '</tr>';
-
-                        for (rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-                            html += '<tr>';
-
-                            row = result[rowIndex];
-                            for (column in row) {
-                                if (column && row.hasOwnProperty(column)) {
-                                    html += '<td>' + row[column] + '</td>';
-                                }
-                            }
-
-                            html += '</tr>';
-                        }
-
-                        html += '</table>';
-                    } else {
-                        html += 'No results found matching the query!';
-                    }
-
-                    queryResults.innerHTML = html;
+                    document.getElementById('queryResultsTime').innerHTML = 
+                        ' (obtained in ' + stopwatch.stop() + '):'; 
+                    
+                    // Display a table with query results. 
+                    new TableControl(
+                        result, 
+                        'queryResults',
+                        'queryResultsTable', 
+                        'No results found matching the query!');
                 } catch (ex) {
                     handleError(ex);
                 }
@@ -286,7 +261,7 @@
             function showOntologyFile(url) {
                 var nav = navigator.appVersion;
                 
-                try {      
+                try {                      
                     // For Chrome, we just open the ontology file in a new tab, since there is no 
                     // way to read local files in Chrome.
                     if (nav.indexOf('Chrome') >= 0) {
