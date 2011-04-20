@@ -3,7 +3,7 @@
  * it includes the following features:
  *
  * OWL/XML parser/writer.
- * OWL-EL reasoner (with limitations)
+ * BrandT - an OWL-EL reasoner (with limitations)
  * SPARQL parser (with limitations).
  * 
  * Copyright <c> The University of Mancehster, 2010 - 2011.
@@ -14,18 +14,854 @@
 var jsw;
 
 if (!jsw) {
-    jsw = {
-        owl: {},
-        rdf: {},
-        util: {},
-        xsd: {}
-    };
-} else {
-    throw 'Unable to run the script! Namespace "jsw" exists already!';
+    jsw = {};
 }
 
+// ============================== RDF namespace ===============================
+
+jsw.rdf = {};
+
+/** Defines IRIs of important concepts in RDF namespace. */
+jsw.rdf.IRIs = {
+    /** IRI by which the type concept is referred to in RDF. */
+    TYPE: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+};
+
+/** Represents a query to the RDF data. */
+jsw.rdf.Query = function () {
+    /** IRI to serve as a base of all IRI references in the query. */
+    this.baseIri = null;
+    /** Indicates that all non-unique matches should be eliminated from the results. */
+    this.distinctResults = false;
+    /** Number of results the query should return. */
+    this.limit = 0;
+    /** The number of a record to start returning results from. */
+    this.offset = 0;
+    /** Array of values to sort the query results by. */
+    this.orderBy = [];
+    /** An array containing all prefix definitions for the query. */
+    this.prefixes = [];
+    /** Indicates if some of the non-unique matches can be eliminated from the results. */
+    this.reducedResults = false;
+    /** An array of RDF triples which need to be matched. */
+    this.triples = [];
+
+    /**
+     * Array containing the names of variables to return as a result of a query run. If the array is
+     * empty, all variables in the query need to be returned.
+     */
+    this.variables = [];
+};
+
+/** Prototype for all jsw.rdf.Query objects. */
+jsw.rdf.Query.prototype = {
+    /** Defines constants by which different expressions can be distinguished in the query. */
+    ExpressionTypes: {
+        VAR: 0,
+        LITERAL: 1,
+        IRI_REF: 2
+    },
+
+    /**
+     * Adds the given prefix to the query. Throws an error if the prefix with the given name but 
+     * different IRI has been defined already.
+     *
+     * @param prefixName Name of the prefix to add.
+     * @param iri IRI associated with the prefix.
+     */
+    addPrefix: function (prefixName, iri) {
+        var existingIri = this.getPrefixIri(prefixName);
+
+        if (existingIri === null) {
+            this.prefixes.push({
+                'prefixName': prefixName,
+                'iri': iri
+            });
+        } else if (iri !== existingIri) {
+            throw 'The prefix "' + prefixName + '" has been defined already in the query!';
+        }
+    },
+
+    /**
+     * Adds an RDF triple which needs to be matched to the query.
+     */
+    addTriple: function (subject, predicate, object) {
+        this.triples.push({
+            'subject': subject,
+            'predicate': predicate,
+            'object': object
+        });
+    },
+
+    /**
+     * Returns IRI for the prefix with the given name in the query.
+     *
+     * @param prefixName Name of the prefix.
+     * @return IRI associated with the given prefix name in the query or null if no prefix with the
+     * given name is defined.
+     */
+    getPrefixIri: function (prefixName) {
+        var prefix,
+            prefixes = this.prefixes,
+            prefixIndex;
+        
+        for (prefixIndex = prefixes.length; prefixIndex--;) {
+            prefix = prefixes[prefixIndex];
+
+            if (prefix.prefixName === prefixName) {
+                return prefix.iri.value;
+            }
+        }
+
+        return null;
+    }
+};
+
+// ============================== XSD namespace ===============================
+
+jsw.xsd = {};
+
+/** Contains the URIs of (some) datatypes of XML Schema. */
+jsw.xsd.DataTypes = {
+    /** IRI of boolean data type. */
+    BOOLEAN: 'http://www.w3.org/2001/XMLSchema#boolean',
+    /** IRI of decimal data type. */
+    DECIMAL: 'http://www.w3.org/2001/XMLSchema#decimal',
+    /** IRI of a double data type. */
+    DOUBLE: 'http://www.w3.org/2001/XMLSchema#double',
+    /** IRI of a integer data type. */
+    INTEGER: 'http://www.w3.org/2001/XMLSchema#integer',
+    /** IRI of a string data type. */
+    STRING: 'http://www.w3.org/2001/XMLSchema#string'
+};
+
+// ============================= SPARQL namespace =============================
+/**
+ * An object which can be used to work with SPARQL queries.
+ * 
+ * The features currently not supported by the parser:
+ *      - Proper relative IRI resolution;
+ *      - Blank Nodes;
+ *      - Comments;
+ *      - Nested Graph Patterns;
+ *      - FILTER expressions;
+ *      - ORDER BY: expressions other than variables;
+ *      - RDF Collections;
+ *      - OPTIONAL patterns;
+ *      - UNION of patterns;
+ *      - FROM clause (and, hence, GRAPH clause and named graphs).
+ */
+jsw.sparql = {
+    /** Defines data types of literals which can be parsed */
+    DataTypes: jsw.xsd.DataTypes,
+    /** Defines types of expressions which can be parsed */
+    ExpressionTypes: jsw.rdf.Query.prototype.ExpressionTypes,
+
+    /** Regular expression for SPARQL absolute IRI references. */
+    absoluteIriRegExp: null, 
+    /** Regular expression for SPARQL boolean literals. */
+    boolRegExp: null,
+    /** Regular expression for SPARQL decimal literals. */
+    decimalRegExp: null,
+    /** Regular expression for SPARQL double literals. */
+    doubleRegExp: null,
+    /** Regular expression for SPARQL integer literals. */
+    intRegExp: null,
+    /** Regular expression for SPARQL IRI references. */
+    iriRegExp: null,
+    /** Regular expression representing one of the values in the ORDER BY clause. */
+    orderByValueRegExp: null,
+    /** Regular expression for SPARQL prefixed names. */
+    prefixedNameRegExp: null,
+    /** Regular expression for SPARQL prefix name. */
+    prefixRegExp: null,
+    /** Regular expression for RDF literals. */
+    rdfLiteralRegExp: null,
+    /** Regular expression for SPARQL variables. */
+    varRegExp: null,
+
+    /**
+     * Expands the given prefixed name into the IRI reference.
+     *
+     * @param prefix Prefix part of the name.
+     * @param localName Local part of the name.
+     * @return IRI reference represented by the given prefix name.
+     */
+    expandPrefixedName: function (prefix, localName, query) {
+
+        var iri;
+
+        if (!prefix && !localName) {
+            throw 'Can not expand the given prefixed name, since both prefix and local name are ' +
+                'empty!';
+        }
+
+        prefix = prefix || '';
+        localName = localName || '';
+                
+        iri = query.getPrefixIri(prefix);
+
+        if (iri === null) {
+            throw 'Prefix "' + prefix + '" has not been defined in the query!';
+        }
+                    
+        return iri + localName;
+    },
+
+    /** Initializes regular expressions used by parser. */
+    init: function () {
+        var pnCharsBase = "A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D" +
+            "\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF" +
+            "\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\u10000-\\uEFFFF",
+            pnCharsU = pnCharsBase + "_",
+            pnChars = pnCharsU + "0-9\\-\\u00B7\\u0300-\\u036F\\u203F-\\u2040",
+            pnNameNs = "([" + pnCharsBase + "][" + pnChars + ".]*[" + pnChars + "])?:",
+            pnLocal = "([" + pnCharsU + "0-9](?:[" + pnChars + ".]*[" + pnChars + "])?)?",
+            varRegExp = "[?$][" + pnCharsU + "0-9][" + pnCharsU + "0-9\\u00B7\\u0300-\\u036F" +
+            "\\u203F-\\u2040]*",
+            string = "'((?:[^\\x27\\x5C\\xA\\xD]|\\[tbnrf\\\"'])*)'|" +
+            '"((?:[^\\x22\\x5C\\xA\\xD]|\\[tbnrf\\"\'])*)"|' + 
+            '"""((?:(?:"|"")?(?:[^"\\]|\\[tbnrf\\"\']))*)"""|' + 
+            "'''((?:(?:'|'')?(?:[^'\\]|\\[tbnrf\\\"']))*)'''",
+            iriRef = '<[^<>"{}|^`\\][\\x00-\\x20]*>',
+            prefixedName = pnNameNs + pnLocal,
+            exponent = '[eE][+-]?[0-9]+';
+
+        this.absoluteIriRegExp = /^<\w*:\/\//; // TODO: This is not precise.
+        this.boolRegExp = /^true$|^false$/i;
+        this.intRegExp = /^(?:\+|-)?[0-9]+$/;
+        this.decimalRegExp = /^(?:\+|-)?(?:[0-9]+\.[0-9]*|\.[0-9]+)$/;
+        this.doubleRegExp = new RegExp('^(?:\\+|-)?(?:[0-9]+\\.[0-9]*' + exponent + '|\\.[0-9]+' +
+            exponent + '|[0-9]+' + exponent + ')$');
+        this.iriRegExp = new RegExp('^' + iriRef + '$');
+        this.orderByValueRegExp = new RegExp('^(ASC|DESC)\\((' + varRegExp + ')\\)$|^' + varRegExp +
+            '$', "i");
+        this.prefixRegExp = new RegExp("^" + pnNameNs + "$");
+        this.prefixedNameRegExp = new RegExp("^" + prefixedName + "$");
+        this.rdfLiteralRegExp = new RegExp('^(?:' + string + ')(?:@([a-zA-Z]+(?:-[a-zA-Z0-9]+)*)|' +
+            '\\^\\^(' + iriRef + ')|\\^\\^' + prefixedName + ')?$');
+        this.varRegExp = new RegExp('^' + varRegExp + '$');
+    },
+
+    /**
+     * Parses the given SPARQL string into the query. 
+     * 
+     * @param queryTxt SPARQL string to parse into the query.
+     * @return An object representing the query parsed.
+     */
+    parse: function (queryTxt) {
+        var iri, object, predicate, prefix, query, subject, token, tokens, tokenCount, 
+            tokenIndex, valueToRead, variable, vars;
+
+        if (!queryTxt) {
+            throw 'The query text is not specified!';
+        }
+        
+        query = new jsw.rdf.Query();
+        tokens = queryTxt.split(/\s+/);
+        tokenCount = tokens.length;
+        tokenIndex = 0;
+
+        if (tokens[tokenIndex].toUpperCase() === 'BASE') {
+            tokenIndex += 1;
+            
+            query.baseIri = this.parseAbsoluteIri(tokens[tokenIndex]);
+            
+            if (query.baseIri === null) {
+                throw 'BASE statement does not contain a valid IRI reference!';
+            }
+
+            tokenIndex += 1;
+        }
+
+        // Read all PREFIX statements...
+        while (tokenIndex < tokenCount) {
+            token = tokens[tokenIndex];
+
+            if (token.toUpperCase() !== 'PREFIX') {
+                break;
+            }
+
+            tokenIndex += 1;
+
+            if (tokenIndex === tokenCount) {
+                throw 'Prefix name expected, but end of the query text found!';
+            }
+
+            prefix = this.parsePrefixName(tokens[tokenIndex]);
+
+            if (prefix === null) {
+                throw 'Token "' + token + '" does not represent a valid IRI prefix!';
+            }
+
+            tokenIndex += 1;
+            
+            if (tokenIndex === tokenCount) {
+                throw 'Prefix IRI expected, but end of the query text found!';
+            }
+
+            iri = this.parseIriRef(tokens[tokenIndex], query);
+
+            if (iri === null) {
+                throw 'Incorrect format of the IRI encountered!';
+            }
+
+            query.addPrefix(prefix, iri);
+
+            tokenIndex += 1;
+        }
+        
+        // Parse SELECT clause.
+        if (tokenIndex === tokenCount) {
+            return query;
+        } else if (token.toUpperCase() !== 'SELECT') {
+            throw 'SELECT statement expected, but "' + token + '" was found!';
+        }
+
+        tokenIndex += 1;
+        
+        if (tokenIndex === tokenCount) {
+            throw 'DISTINCT/REDUCED or variable declaration expected after "SELECT", but the end ' +
+                'of query text was found!';
+        }
+
+        token = tokens[tokenIndex].toUpperCase();
+
+        if (token === 'DISTINCT') {
+            query.distinctResults = true;
+            tokenIndex += 1;
+        } else if (token === 'REDUCED') {
+            query.reducedResults = true;
+            tokenIndex += 1;
+        }
+
+        if (tokenIndex === tokenCount) {
+            throw 'Variable declarations are expected after DISTINCT/REDUCED, but the end of ' +
+                'the query text was found!';
+        }
+
+        token = tokens[tokenIndex];
+
+        if (token === '*') {
+            tokenIndex += 1;
+
+            token = tokens[tokenIndex];
+        } else {
+            vars = [];
+
+            // Parse SELECT variables.
+            while (tokenIndex < tokenCount) {
+                token = tokens[tokenIndex];
+
+                if (token.toUpperCase() === 'WHERE' || token === '{') {
+                    break;
+                }
+
+                variable = this.parseVar(token);
+            
+                if (variable) {
+                    vars.push(variable);
+                } else {
+                    throw 'The token "' + token + '" does not represent the valid variable!';
+                }
+
+                tokenIndex += 1;
+            }
+
+            if (vars.length === 0) {
+                throw 'No variable definitions found in the SELECT clause!';
+            }
+
+            query.variables = vars;
+        }
+
+        if (tokenIndex === tokenCount) {
+            return query;
+        } else if (token.toUpperCase() === 'WHERE') {
+            if (tokens[tokenIndex + 1] === '{') {
+                tokenIndex += 2; // Skip to the next token after '{'.    
+            } else {
+                throw 'WHERE clause should be surrounded with "{}"!';
+            }
+        } else if (token === '{') {
+            tokenIndex += 1;
+        } else {
+            throw 'WHERE clause was expected, but "' + token + '" was found!';
+        }
+
+        // Parsing WHERE clause.
+        valueToRead = 0;
+
+        while (tokenIndex < tokenCount) {
+            // TODO: Add parsing filters.
+            token = tokens[tokenIndex];
+
+            if (token === '}') {
+                if (valueToRead === 0) {
+                    break;
+                } else {
+                    throw 'RDF triple is not complete but the end of WHERE clause was found!';
+                }
+            }
+
+            if (valueToRead === 0) {
+                subject = this.parseVarOrTerm(token, query);
+
+                if (subject === null) {
+                    throw 'Subject variable or term was expected but "' + token + '" was found!';
+                }
+
+                tokenIndex += 1;
+                valueToRead += 1;
+
+                if (tokenIndex === tokenCount) {
+                    throw 'Predicate of the RDF triple expected, reached the end of text instead!';
+                }
+            } else if (valueToRead === 1) {
+                predicate = this.parseVerb(token, query);
+
+                if (predicate === null) {
+                    throw 'Predicate verb was expected but "' + token + '" was found!';
+                }
+
+                tokenIndex += 1;
+                valueToRead += 1;
+
+                if (tokenIndex === tokenCount) {
+                    throw 'Object of the RDF triple expected, reached the end of text instead!';
+                }
+            } else if (valueToRead === 2) {
+                object = this.parseVarOrTerm(token, query);
+
+                if (object === null) {
+                    throw 'Object variable or term was expected but "' + token + '" was found!';
+                }
+
+                query.addTriple(subject, predicate, object);
+
+                valueToRead = 0;
+                tokenIndex += 1;
+
+                switch (tokens[tokenIndex]) {
+                case '.':
+                    valueToRead = 0;
+                    tokenIndex += 1;
+                    break;
+                case ';':
+                    valueToRead = 1;
+                    tokenIndex += 1;
+                    break;
+                case ',':
+                    valueToRead = 2;
+                    tokenIndex += 1;
+                    break;
+                }
+            }
+        }
+
+        if (tokenIndex === tokenCount) {
+            throw '"}" expected but the end of query text found!';
+        }
+
+        tokenIndex += 1;
+
+        if (tokenIndex === tokenCount) {
+            return query;
+        }
+    
+        if (tokens[tokenIndex].toUpperCase() === 'ORDER') {
+            tokenIndex += 1;
+
+            token = tokens[tokenIndex];
+
+
+            if (token.toUpperCase() !== 'BY') {
+                throw '"BY" expected after "ORDER", but "' + token + '" was found!';
+            }
+
+            tokenIndex += 1;
+
+            while (tokenIndex < tokenCount) {
+                token = tokens[tokenIndex];
+
+                if (token.toUpperCase() === 'LIMIT' || token.toUpperCase() === 'OFFSET') {
+                    break;
+                }
+
+                variable = this.parseOrderByValue(token);
+
+                if (variable === null) {
+                    throw 'Unknown token "' + token + '" was found in the ORDER BY clause!';
+                }
+
+                query.orderBy.push(variable);
+                tokenIndex += 1;
+            }
+        }
+
+        while (tokenIndex < tokenCount) {
+            token = tokens[tokenIndex].toUpperCase();
+            
+            // Parse LIMIT clause.
+            if (token === 'LIMIT') {
+                tokenIndex += 1;
+
+                if (tokenIndex === tokenCount) {
+                    throw 'Integer expected after "LIMIT", but the end of query text found!';
+                }
+
+                token = tokens[tokenIndex];
+                query.limit = parseInt(token, 10);
+
+                if (isNaN(query.limit)) {
+                    throw 'Integer expected after "LIMIT", but "' + token + '" found!';
+                }
+
+                tokenIndex += 1;
+            } else if (token === 'OFFSET') {
+                // Parse OFFSET clause.
+                tokenIndex += 1;
+
+                if (tokenIndex === tokenCount) {
+                    throw 'Integer expected after "OFFSET", but the end of query text found!';
+                }
+
+                token = tokens[tokenIndex];
+                query.offset = parseInt(token, 10);
+
+                if (isNaN(query.offset)) {
+                    throw 'Integer expected after "OFFSET", but "' + token + '" found!';
+                }
+
+                tokenIndex += 1;
+            } else {
+                throw 'Unexpected token "' + token + '" found!';
+            }
+        }
+
+        return query;
+    },
+
+    /**
+     * Parses the given string into the absolute IRI.
+     *
+     * @param token String containing the IRI.
+     * @return Absolute IRI parsed from the string or null if the given string does not represent
+     * an absolute IRI.
+     */
+    parseAbsoluteIri: function (token) {
+        if (!this.iriRegExp) {
+            this.init();
+        }
+
+        if (this.iriRegExp.test(token) && this.absoluteIriRegExp.test(token)) {
+            return token.substring(1, token.length - 1);
+        } else {
+            return null;
+        }
+    },
+
+    /**
+     * Parses the given string into the object representing an IRI.
+     *
+     * @param token String containing the IRI.
+     * @param baseIri IRI to use for resolving relative IRIs.
+     * @return Object representing the IRI parsed or null if the given string does not represent an
+     * IRI.
+     */
+    parseIriRef: function (token, baseIri) {
+        var iriRef;
+
+        if (!this.iriRegExp) {
+            this.init();
+        }
+
+        if (!this.iriRegExp.test(token)) {
+            return null;
+        }
+        
+        if (!baseIri || this.absoluteIriRegExp.test(token)) {
+            iriRef = token.substring(1, token.length - 1);
+        } else {
+            // TODO: This is very basic resolution!
+            iriRef = baseIri + token.substring(1, token.length - 1);
+        }
+
+        return {
+            'type': this.ExpressionTypes.IRI_REF,
+            'value': iriRef
+        };
+    },
+
+    /**
+     * Parses the given string into a literal.
+     *
+     * @param token String containing the literal.
+     * @return Literal parsed from the string or null if the token does not represent a valid
+     * literal.
+     */
+    parseLiteral: function (token, query) {
+        var dataTypeIri, localName, matches, matchIndex, prefix, value;
+
+        if (!this.rdfLiteralRegExp) {
+            this.init();
+        }
+
+        matches = token.match(this.rdfLiteralRegExp);
+
+        if (matches) {
+            for (matchIndex = 1; matchIndex <= 4; matchIndex += 1) {
+                value = matches[matchIndex];
+
+                if (value) {
+                    break;
+                }
+            }
+
+            dataTypeIri = matches[6] || null;
+
+            if (!dataTypeIri) {
+                prefix = matches[7] || '';
+                localName = matches[8] || '';
+                
+                if (prefix !== '' || localName !== '') {
+                    dataTypeIri = this.expandPrefixedName(prefix, localName, query);
+                } else {
+                    dataTypeIri = this.DataTypes.STRING;
+                }
+            }
+
+            return {
+                'type': this.ExpressionTypes.LITERAL,
+                'value': value,
+                'lang': matches[5] || null,
+                'dataType': dataTypeIri
+            };
+        }
+
+        if (this.intRegExp.test(token)) {
+            return {
+                'type': this.ExpressionTypes.LITERAL,
+                'value': token,
+                'dataType': this.DataTypes.INTEGER
+            };
+        }
+
+        if (this.decimalRegExp.test(token)) {
+            return {
+                'type': this.ExpressionTypes.LITERAL,
+                'value': token,
+                'dataType': this.DataTypes.DECIMAL
+            };
+        }
+
+        if (this.doubleRegExp.test(token)) {
+            return {
+                'type': this.ExpressionTypes.LITERAL,
+                'value': token,
+                'dataType': this.DataTypes.DOUBLE
+            };
+        }
+
+        if (this.boolRegExp.test(token)) {
+            return {
+                'type': this.ExpressionTypes.LITERAL,
+                'value': token,
+                'dataType': this.DataTypes.BOOLEAN
+            };
+        }
+
+        return null;
+    },
+
+    /**
+     * Parses the given string into the object representing some value found in the order by clause.
+     *
+     * @param token String to parse.
+     * @return Object representing the order by value parsed or null if token does not reperesent
+     * a valid order by value.
+     */
+    parseOrderByValue: function (token) {
+        // TODO: support not only variables in ORDER BY.
+        var match, prefix;
+
+        if (!this.orderByValueRegExp) {
+            this.init();
+        }
+
+        match = token.match(this.orderByValueRegExp);
+
+        if (match) {
+            prefix = match[1];
+
+            if (!prefix) {
+                return {
+                    'type': this.ExpressionTypes.VAR,
+                    'value': match[0].substring(1), // remove the ? or $ in the variable
+                    'order': 'ASC'
+                };
+            }
+
+            return {
+                'type': this.ExpressionTypes.VAR,
+                'value': match[2].substring(1), // remove the ? or $ in the variable
+                'order': match[1].toUpperCase()
+            };
+        }
+
+        return null;
+    },
+
+    /**
+     * Parses the given string into the IRI, assuming that it is a prefixed name.
+     *
+     * @param token String containing prefixed name.
+     * @param query Query object with defined prefixes, which can be used for name expansion.
+     * @return Object representing the prefixed name parsed or null if the token is not a prefixed
+     * name.
+     */
+    parsePrefixedName: function (token, query) {
+        var match;
+
+        if (!this.prefixedNameRegExp) {
+            this.init();
+        }
+        
+        match = token.match(this.prefixedNameRegExp);
+
+        if (!match) {
+            return null;
+        }
+
+        return {
+            'type': this.ExpressionTypes.IRI_REF,
+            'value': this.expandPrefixedName(match[1], match[2], query)
+        };
+    },
+
+    /**
+     * Parses the given string into the string representing the prefix name.
+     *
+     * @param token String containing the prefix name.
+     * @return Prefix name parsed or null if the given string does not contain a prefix name.
+     */
+    parsePrefixName: function (token) {
+        if (!this.prefixRegExp) {
+            this.init();
+        }
+
+        return (this.prefixRegExp.test(token)) ? token.substring(0, token.length - 1) : null;
+    },
+
+    /**
+     * Returns a SPARQL variable or term represented by the given string.
+     *
+     * @param token String to parse into the variable or term.
+     * @param query Reference to the query for which the variable or term is parsed.
+     * @return Object representing the variable or a term parsed.
+     */
+    parseVarOrTerm: function (token, query) {
+        // See if it is a variable.
+        var value = this.parseVar(token);
+        
+        if (value) {
+            return value;
+        }
+
+        // See if it is an IRI reference.
+        value = this.parseIriRef(token, query.baseIri);
+
+        if (value) {
+            return value;
+        }
+
+        // See if it is a prefixed name.
+        value = this.parsePrefixedName(token, query);
+
+        if (value) {
+            return value;
+        }
+
+        // See if it is a literal.
+        value = this.parseLiteral(token, query);
+        
+        if (value) {
+            return value;
+        }
+
+        return null;
+    },
+
+    /**
+     * Parses a token into the variable.
+
+     *
+     * @param token Contains the text representing SPARQL variable.
+     * @return Object representing the SPARQL variable, or null if the given token does not
+     * represent a valid SPARQL variable.
+     */
+    parseVar: function (token) {
+        if (this.varRegExp === null) {
+            this.init();
+        }        
+        
+        if (!this.varRegExp.test(token)) {
+            return null;
+        }
+
+        return {
+            'type': this.ExpressionTypes.VAR,
+            'value': token.substring(1) // Skip the initial '?' or '$'
+        };
+    },
+
+    /**
+     * Parses a token into the SPARQL verb.
+     *
+     * @param token String containing a SPARQL verb.
+     * @param query Reference to the query for which the variable or term is parsed.
+     * @return Object representing the SPARQL verb, or null if the given token does not represent a
+     * valid SPARQL verb.
+     */
+    parseVerb: function (token, query) {
+        // See if it is a variable.
+        var value = this.parseVar(token);
+        
+        if (value) {
+            return value;
+        }
+
+        // See if it is an IRI reference.
+        value = this.parseIriRef(token, query.baseIri);
+
+        if (value) {
+            return value;
+        }
+
+        // See if it is a prefixed name.
+        value = this.parsePrefixedName(token, query);
+
+        if (value) {
+            return value;
+        }
+
+        if (token === 'a') {
+            return {
+                'type': this.ExpressionTypes.IRI_REF,
+                'value':  jsw.rdf.IRIs.TYPE
+            };
+        }
+
+        return null;
+    }
+};
+
+// =============================== OWL namespace ==============================
+
+jsw.owl = {};
+
 /** Defines types of expressions the objects in OWL namespace can work with.*/
-jsw.owl.EXPRESSION_TYPES = {
+jsw.owl.ExpressionTypes = {
     /** SubClassOf axiom. */
     AXIOM_CLASS_SUB: 0,
     /** EquivalentClasses axiom. */
@@ -59,7 +895,7 @@ jsw.owl.EXPRESSION_TYPES = {
 };
 
 /** Defines important IRIs in the OWL namespace. */
-jsw.owl.IRIS = {
+jsw.owl.IRIs = {
     /** Top concept. */
     THING: 'http://www.w3.org/2002/07/owl#Thing',
     /** Bottom concept. */
@@ -68,26 +904,6 @@ jsw.owl.IRIS = {
     TOP_OBJECT_PROPERTY: 'http://www.w3.org/2002/07/owl#topObjectProperty',
     /** Bottom object property. */
     BOTTOM_OBJECT_PROPERTY: 'http://www.w3.org/2002/07/owl#bottomObjectProperty'    
-};
-
-/** Defines IRIs of important concepts in RDF namespace. */
-jsw.rdf.IRIS = {
-    /** IRI by which the type concept is referred to in RDF. */
-    TYPE: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-};
-
-/** Contains the URIs of (some) datatypes of XML Schema. */
-jsw.xsd.DATA_TYPES = {
-    /** IRI of boolean data type. */
-    BOOLEAN: 'http://www.w3.org/2001/XMLSchema#boolean',
-    /** IRI of decimal data type. */
-    DECIMAL: 'http://www.w3.org/2001/XMLSchema#decimal',
-    /** IRI of a double data type. */
-    DOUBLE: 'http://www.w3.org/2001/XMLSchema#double',
-    /** IRI of a integer data type. */
-    INTEGER: 'http://www.w3.org/2001/XMLSchema#integer',
-    /** IRI of a string data type. */
-    STRING: 'http://www.w3.org/2001/XMLSchema#string'
 };
 
 /** An object allowing to work with OWL/XML format. */
@@ -100,7 +916,7 @@ jsw.owl.xml = {
      * @return Ontology object representing the ontology parsed.
      */
     parse: function (owlXml, onError) {
-        var exprTypes = jsw.owl.EXPRESSION_TYPES, // Cash reference to the constants.
+        var exprTypes = jsw.owl.ExpressionTypes, // Cash reference to the constants.
             node, // Will hold the current node being parsed.
             ontology = new jsw.owl.Ontology(), // The ontology to be returned.
             statements = ontology.axioms; // Will contain all statements.
@@ -632,6 +1448,25 @@ jsw.owl.xml = {
     },
   
     /**
+     * Parses the OWL/XML ontology located at the given url.
+     * 
+     * @param url URL of the OWL/XML ontology to be parsed.
+     * @param onError Function to be called in case if the parsing error occurs.
+     * @return Ontology object representing the ontology parsed.
+     */
+    parseUrl: function (url, onError) {
+        var newUrl = jsw.util.string.trim(url),
+            owlXml;
+        
+        if (!jsw.util.string.isUrl(newUrl)) {
+            throw '"' + url + '" is not a valid URL!';
+        }
+        
+        owlXml = new jsw.util.TextFile(url).getText();
+        return this.parse(owlXml);
+    },
+  
+    /**
      * Builds an OWL/XML string representing the given ontology.
      * 
      * @param ontology Ontology to return the OWL/XML representation for.
@@ -642,7 +1477,7 @@ jsw.owl.xml = {
             axioms = ontology.axioms,
             axiomCount = axioms.length,
             axiomIndex, // Index of the statement currently processed.
-            exprTypes = jsw.owl.EXPRESSION_TYPES, // Cashed constants.
+            exprTypes = jsw.owl.ExpressionTypes, // Cashed constants.
             owlXml = '<Ontology>', // Will hold ontology OWL/XML produced.
             prefixes = ontology.prefixes,
             prefixName; 
@@ -911,821 +1746,11 @@ jsw.owl.xml = {
      
         owlXml += '</Ontology>';
         return owlXml;
-    }
-};
-
-/** Represents a query to the RDF data. */
-jsw.rdf.Query = function () {
-    /** IRI to serve as a base of all IRI references in the query. */
-    this.baseIri = null;
-    /** Indicates that all non-unique matches should be eliminated from the results. */
-    this.distinctResults = false;
-    /** Number of results the query should return. */
-    this.limit = 0;
-    /** The number of a record to start returning results from. */
-    this.offset = 0;
-    /** Array of values to sort the query results by. */
-    this.orderBy = [];
-    /** An array containing all prefix definitions for the query. */
-    this.prefixes = [];
-    /** Indicates if some of the non-unique matches can be eliminated from the results. */
-    this.reducedResults = false;
-    /** An array of RDF triples which need to be matched. */
-    this.triples = [];
-
-    /**
-     * Array containing the names of variables to return as a result of a query run. If the array is
-     * empty, all variables in the query need to be returned.
-     */
-    this.variables = [];
-};
-
-/** Prototype for all jsw.rdf.Query objects. */
-jsw.rdf.Query.prototype = {
-    /** Defines constants by which different expressions can be distinguished in the query. */
-    EXPR_TYPES: {
-        VAR: 0,
-        LITERAL: 1,
-        IRI_REF: 2
-    },
-
-    /**
-     * Adds the given prefix to the query. Throws an error if the prefix with the given name but 
-     * different IRI has been defined already.
-     *
-     * @param prefixName Name of the prefix to add.
-     * @param iri IRI associated with the prefix.
-     */
-    addPrefix: function (prefixName, iri) {
-        var existingIri = this.getPrefixIri(prefixName);
-
-        if (existingIri === null) {
-            this.prefixes.push({
-                'prefixName': prefixName,
-                'iri': iri
-            });
-        } else if (iri !== existingIri) {
-            throw 'The prefix "' + prefixName + '" has been defined already in the query!';
-        }
-    },
-
-    /**
-     * Adds an RDF triple which needs to be matched to the query.
-     */
-    addTriple: function (subject, predicate, object) {
-        this.triples.push({
-            'subject': subject,
-            'predicate': predicate,
-            'object': object
-        });
-    },
-
-    /**
-     * Returns IRI for the prefix with the given name in the query.
-     *
-     * @param prefixName Name of the prefix.
-     * @return IRI associated with the given prefix name in the query or null if no prefix with the
-     * given name is defined.
-     */
-    getPrefixIri: function (prefixName) {
-        var prefix,
-            prefixes = this.prefixes,
-            prefixIndex;
-        
-        for (prefixIndex = prefixes.length; prefixIndex--;) {
-            prefix = prefixes[prefixIndex];
-
-            if (prefix.prefixName === prefixName) {
-                return prefix.iri.value;
-            }
-        }
-
-        return null;
-    }
-};
-
-/**
- * An object which can be used to work with SPARQL queries.
- * 
- * The features currently not supported by the parser:
- *      - Proper relative IRI resolution;
- *      - Blank Nodes;
- *      - Comments;
- *      - Nested Graph Patterns;
- *      - FILTER expressions;
- *      - ORDER BY: expressions other than variables;
- *      - RDF Collections;
- *      - OPTIONAL patterns;
- *      - UNION of patterns;
- *      - FROM clause (and, hence, GRAPH clause and named graphs).
- */
-jsw.sparql = {
-    /** Defines data types of literals which can be parsed */
-    DATA_TYPES: jsw.xsd.DATA_TYPES,
-    /** Defines types of expressions which can be parsed */
-    EXPR_TYPES: jsw.rdf.Query.prototype.EXPR_TYPES,
-
-    /** Regular expression for SPARQL absolute IRI references. */
-    absoluteIriRegExp: null, 
-    /** Regular expression for SPARQL boolean literals. */
-    boolRegExp: null,
-    /** Regular expression for SPARQL decimal literals. */
-    decimalRegExp: null,
-    /** Regular expression for SPARQL double literals. */
-    doubleRegExp: null,
-    /** Regular expression for SPARQL integer literals. */
-    intRegExp: null,
-    /** Regular expression for SPARQL IRI references. */
-    iriRegExp: null,
-    /** Regular expression representing one of the values in the ORDER BY clause. */
-    orderByValueRegExp: null,
-    /** Regular expression for SPARQL prefixed names. */
-    prefixedNameRegExp: null,
-    /** Regular expression for SPARQL prefix name. */
-    prefixRegExp: null,
-    /** Regular expression for RDF literals. */
-    rdfLiteralRegExp: null,
-    /** Regular expression for SPARQL variables. */
-    varRegExp: null,
-
-    /**
-     * Expands the given prefixed name into the IRI reference.
-     *
-     * @param prefix Prefix part of the name.
-     * @param localName Local part of the name.
-     * @return IRI reference represented by the given prefix name.
-     */
-    expandPrefixedName: function (prefix, localName, query) {
-
-        var iri;
-
-        if (!prefix && !localName) {
-            throw 'Can not expand the given prefixed name, since both prefix and local name are ' +
-                'empty!';
-        }
-
-        prefix = prefix || '';
-        localName = localName || '';
-                
-        iri = query.getPrefixIri(prefix);
-
-        if (iri === null) {
-            throw 'Prefix "' + prefix + '" has not been defined in the query!';
-        }
-                    
-        return iri + localName;
-    },
-
-    /** Initializes regular expressions used by parser. */
-    init: function () {
-        var pnCharsBase = "A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D" +
-            "\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF" +
-            "\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\u10000-\\uEFFFF",
-            pnCharsU = pnCharsBase + "_",
-            pnChars = pnCharsU + "0-9\\-\\u00B7\\u0300-\\u036F\\u203F-\\u2040",
-            pnNameNs = "([" + pnCharsBase + "][" + pnChars + ".]*[" + pnChars + "])?:",
-            pnLocal = "([" + pnCharsU + "0-9](?:[" + pnChars + ".]*[" + pnChars + "])?)?",
-            varRegExp = "[?$][" + pnCharsU + "0-9][" + pnCharsU + "0-9\\u00B7\\u0300-\\u036F" +
-            "\\u203F-\\u2040]*",
-            string = "'((?:[^\\x27\\x5C\\xA\\xD]|\\[tbnrf\\\"'])*)'|" +
-            '"((?:[^\\x22\\x5C\\xA\\xD]|\\[tbnrf\\"\'])*)"|' + 
-            '"""((?:(?:"|"")?(?:[^"\\]|\\[tbnrf\\"\']))*)"""|' + 
-            "'''((?:(?:'|'')?(?:[^'\\]|\\[tbnrf\\\"']))*)'''",
-            iriRef = '<[^<>"{}|^`\\][\\x00-\\x20]*>',
-            prefixedName = pnNameNs + pnLocal,
-            exponent = '[eE][+-]?[0-9]+';
-
-        this.absoluteIriRegExp = /^<\w*:\/\//; // TODO: This is not precise.
-        this.boolRegExp = /^true$|^false$/i;
-        this.intRegExp = /^(?:\+|-)?[0-9]+$/;
-        this.decimalRegExp = /^(?:\+|-)?(?:[0-9]+\.[0-9]*|\.[0-9]+)$/;
-        this.doubleRegExp = new RegExp('^(?:\\+|-)?(?:[0-9]+\\.[0-9]*' + exponent + '|\\.[0-9]+' +
-            exponent + '|[0-9]+' + exponent + ')$');
-        this.iriRegExp = new RegExp('^' + iriRef + '$');
-        this.orderByValueRegExp = new RegExp('^(ASC|DESC)\\((' + varRegExp + ')\\)$|^' + varRegExp +
-            '$', "i");
-        this.prefixRegExp = new RegExp("^" + pnNameNs + "$");
-        this.prefixedNameRegExp = new RegExp("^" + prefixedName + "$");
-        this.rdfLiteralRegExp = new RegExp('^(?:' + string + ')(?:@([a-zA-Z]+(?:-[a-zA-Z0-9]+)*)|' +
-            '\\^\\^(' + iriRef + ')|\\^\\^' + prefixedName + ')?$');
-        this.varRegExp = new RegExp('^' + varRegExp + '$');
-    },
-
-    /**
-     * Parses the given SPARQL string into the query. 
-     * 
-     * @param queryTxt SPARQL string to parse into the query.
-     * @return An object representing the query parsed.
-     */
-    parse: function (queryTxt) {
-        var iri, object, predicate, prefix, query, subject, token, tokens, tokenCount, 
-            tokenIndex, valueToRead, variable, vars;
-
-        if (!queryTxt) {
-            throw 'The query text is not specified!';
-        }
-        
-        query = new jsw.rdf.Query();
-        tokens = queryTxt.split(/\s+/);
-        tokenCount = tokens.length;
-        tokenIndex = 0;
-
-        if (tokens[tokenIndex].toUpperCase() === 'BASE') {
-            tokenIndex += 1;
-            
-            query.baseIri = this.parseAbsoluteIri(tokens[tokenIndex]);
-            
-            if (query.baseIri === null) {
-                throw 'BASE statement does not contain a valid IRI reference!';
-            }
-
-            tokenIndex += 1;
-        }
-
-        // Read all PREFIX statements...
-        while (tokenIndex < tokenCount) {
-            token = tokens[tokenIndex];
-
-            if (token.toUpperCase() !== 'PREFIX') {
-                break;
-            }
-
-            tokenIndex += 1;
-
-            if (tokenIndex === tokenCount) {
-                throw 'Prefix name expected, but end of the query text found!';
-            }
-
-            prefix = this.parsePrefixName(tokens[tokenIndex]);
-
-            if (prefix === null) {
-                throw 'Token "' + token + '" does not represent a valid IRI prefix!';
-            }
-
-            tokenIndex += 1;
-            
-            if (tokenIndex === tokenCount) {
-                throw 'Prefix IRI expected, but end of the query text found!';
-            }
-
-            iri = this.parseIriRef(tokens[tokenIndex], query);
-
-            if (iri === null) {
-                throw 'Incorrect format of the IRI encountered!';
-            }
-
-            query.addPrefix(prefix, iri);
-
-            tokenIndex += 1;
-        }
-        
-        // Parse SELECT clause.
-        if (tokenIndex === tokenCount) {
-            return query;
-        } else if (token.toUpperCase() !== 'SELECT') {
-            throw 'SELECT statement expected, but "' + token + '" was found!';
-        }
-
-        tokenIndex += 1;
-        
-        if (tokenIndex === tokenCount) {
-            throw 'DISTINCT/REDUCED or variable declaration expected after "SELECT", but the end ' +
-                'of query text was found!';
-        }
-
-        token = tokens[tokenIndex].toUpperCase();
-
-        if (token === 'DISTINCT') {
-            query.distinctResults = true;
-            tokenIndex += 1;
-        } else if (token === 'REDUCED') {
-            query.reducedResults = true;
-            tokenIndex += 1;
-        }
-
-        if (tokenIndex === tokenCount) {
-            throw 'Variable declarations are expected after DISTINCT/REDUCED, but the end of ' +
-                'the query text was found!';
-        }
-
-        token = tokens[tokenIndex];
-
-        if (token === '*') {
-            tokenIndex += 1;
-
-            token = tokens[tokenIndex];
-        } else {
-            vars = [];
-
-            // Parse SELECT variables.
-            while (tokenIndex < tokenCount) {
-                token = tokens[tokenIndex];
-
-                if (token.toUpperCase() === 'WHERE' || token === '{') {
-                    break;
-                }
-
-                variable = this.parseVar(token);
-            
-                if (variable) {
-                    vars.push(variable);
-                } else {
-                    throw 'The token "' + token + '" does not represent the valid variable!';
-                }
-
-                tokenIndex += 1;
-            }
-
-            if (vars.length === 0) {
-                throw 'No variable definitions found in the SELECT clause!';
-            }
-
-            query.variables = vars;
-        }
-
-        if (tokenIndex === tokenCount) {
-            return query;
-        } else if (token.toUpperCase() === 'WHERE') {
-            if (tokens[tokenIndex + 1] === '{') {
-                tokenIndex += 2; // Skip to the next token after '{'.    
-            } else {
-                throw 'WHERE clause should be surrounded with "{}"!';
-            }
-        } else if (token === '{') {
-            tokenIndex += 1;
-        } else {
-            throw 'WHERE clause was expected, but "' + token + '" was found!';
-        }
-
-        // Parsing WHERE clause.
-        valueToRead = 0;
-
-        while (tokenIndex < tokenCount) {
-            // TODO: Add parsing filters.
-            token = tokens[tokenIndex];
-
-            if (token === '}') {
-                if (valueToRead === 0) {
-                    break;
-                } else {
-                    throw 'RDF triple is not complete but the end of WHERE clause was found!';
-                }
-            }
-
-            if (valueToRead === 0) {
-                subject = this.parseVarOrTerm(token, query);
-
-                if (subject === null) {
-                    throw 'Subject variable or term was expected but "' + token + '" was found!';
-                }
-
-                tokenIndex += 1;
-                valueToRead += 1;
-
-                if (tokenIndex === tokenCount) {
-                    throw 'Predicate of the RDF triple expected, reached the end of text instead!';
-                }
-            } else if (valueToRead === 1) {
-                predicate = this.parseVerb(token, query);
-
-                if (predicate === null) {
-                    throw 'Predicate verb was expected but "' + token + '" was found!';
-                }
-
-                tokenIndex += 1;
-                valueToRead += 1;
-
-                if (tokenIndex === tokenCount) {
-                    throw 'Object of the RDF triple expected, reached the end of text instead!';
-                }
-            } else if (valueToRead === 2) {
-                object = this.parseVarOrTerm(token, query);
-
-                if (object === null) {
-                    throw 'Object variable or term was expected but "' + token + '" was found!';
-                }
-
-                query.addTriple(subject, predicate, object);
-
-                valueToRead = 0;
-                tokenIndex += 1;
-
-                switch (tokens[tokenIndex]) {
-                case '.':
-                    valueToRead = 0;
-                    tokenIndex += 1;
-                    break;
-                case ';':
-                    valueToRead = 1;
-                    tokenIndex += 1;
-                    break;
-                case ',':
-                    valueToRead = 2;
-                    tokenIndex += 1;
-                    break;
-                }
-            }
-        }
-
-        if (tokenIndex === tokenCount) {
-            throw '"}" expected but the end of query text found!';
-        }
-
-        tokenIndex += 1;
-
-        if (tokenIndex === tokenCount) {
-            return query;
-        }
-    
-        if (tokens[tokenIndex].toUpperCase() === 'ORDER') {
-            tokenIndex += 1;
-
-            token = tokens[tokenIndex];
-
-
-            if (token.toUpperCase() !== 'BY') {
-                throw '"BY" expected after "ORDER", but "' + token + '" was found!';
-            }
-
-            tokenIndex += 1;
-
-            while (tokenIndex < tokenCount) {
-                token = tokens[tokenIndex];
-
-                if (token.toUpperCase() === 'LIMIT' || token.toUpperCase() === 'OFFSET') {
-                    break;
-                }
-
-                variable = this.parseOrderByValue(token);
-
-                if (variable === null) {
-                    throw 'Unknown token "' + token + '" was found in the ORDER BY clause!';
-                }
-
-                query.orderBy.push(variable);
-                tokenIndex += 1;
-            }
-        }
-
-        while (tokenIndex < tokenCount) {
-            token = tokens[tokenIndex].toUpperCase();
-            
-            // Parse LIMIT clause.
-            if (token === 'LIMIT') {
-                tokenIndex += 1;
-
-                if (tokenIndex === tokenCount) {
-                    throw 'Integer expected after "LIMIT", but the end of query text found!';
-                }
-
-                token = tokens[tokenIndex];
-                query.limit = parseInt(token, 10);
-
-                if (isNaN(query.limit)) {
-                    throw 'Integer expected after "LIMIT", but "' + token + '" found!';
-                }
-
-                tokenIndex += 1;
-            } else if (token === 'OFFSET') {
-                // Parse OFFSET clause.
-                tokenIndex += 1;
-
-                if (tokenIndex === tokenCount) {
-                    throw 'Integer expected after "OFFSET", but the end of query text found!';
-                }
-
-                token = tokens[tokenIndex];
-                query.offset = parseInt(token, 10);
-
-                if (isNaN(query.offset)) {
-                    throw 'Integer expected after "OFFSET", but "' + token + '" found!';
-                }
-
-                tokenIndex += 1;
-            } else {
-                throw 'Unexpected token "' + token + '" found!';
-            }
-        }
-
-        return query;
-    },
-
-    /**
-     * Parses the given string into the absolute IRI.
-     *
-     * @param token String containing the IRI.
-     * @return Absolute IRI parsed from the string or null if the given string does not represent
-     * an absolute IRI.
-     */
-    parseAbsoluteIri: function (token) {
-        if (!this.iriRegExp) {
-            this.init();
-        }
-
-        if (this.iriRegExp.test(token) && this.absoluteIriRegExp.test(token)) {
-            return token.substring(1, token.length - 1);
-        } else {
-            return null;
-        }
-    },
-
-    /**
-     * Parses the given string into the object representing an IRI.
-     *
-     * @param token String containing the IRI.
-     * @param baseIri IRI to use for resolving relative IRIs.
-     * @return Object representing the IRI parsed or null if the given string does not represent an
-     * IRI.
-     */
-    parseIriRef: function (token, baseIri) {
-        var iriRef;
-
-        if (!this.iriRegExp) {
-            this.init();
-        }
-
-        if (!this.iriRegExp.test(token)) {
-            return null;
-        }
-        
-        if (!baseIri || this.absoluteIriRegExp.test(token)) {
-            iriRef = token.substring(1, token.length - 1);
-        } else {
-            // TODO: This is very basic resolution!
-            iriRef = baseIri + token.substring(1, token.length - 1);
-        }
-
-        return {
-            'type': this.EXPR_TYPES.IRI_REF,
-            'value': iriRef
-        };
-    },
-
-    /**
-     * Parses the given string into a literal.
-     *
-     * @param token String containing the literal.
-     * @return Literal parsed from the string or null if the token does not represent a valid
-     * literal.
-     */
-    parseLiteral: function (token, query) {
-        var dataTypeIri, localName, matches, matchIndex, prefix, value;
-
-        if (!this.rdfLiteralRegExp) {
-            this.init();
-        }
-
-        matches = token.match(this.rdfLiteralRegExp);
-
-        if (matches) {
-            for (matchIndex = 1; matchIndex <= 4; matchIndex += 1) {
-                value = matches[matchIndex];
-
-                if (value) {
-                    break;
-                }
-            }
-
-            dataTypeIri = matches[6] || null;
-
-            if (!dataTypeIri) {
-                prefix = matches[7] || '';
-                localName = matches[8] || '';
-                
-                if (prefix !== '' || localName !== '') {
-                    dataTypeIri = this.expandPrefixedName(prefix, localName, query);
-                } else {
-                    dataTypeIri = this.DATA_TYPES.STRING;
-                }
-            }
-
-            return {
-                'type': this.EXPR_TYPES.LITERAL,
-                'value': value,
-                'lang': matches[5] || null,
-                'dataType': dataTypeIri
-            };
-        }
-
-        if (this.intRegExp.test(token)) {
-            return {
-                'type': this.EXPR_TYPES.LITERAL,
-                'value': token,
-                'dataType': this.DATA_TYPES.INTEGER
-            };
-        }
-
-        if (this.decimalRegExp.test(token)) {
-            return {
-                'type': this.EXPR_TYPES.LITERAL,
-                'value': token,
-                'dataType': this.DATA_TYPES.DECIMAL
-            };
-        }
-
-        if (this.doubleRegExp.test(token)) {
-            return {
-                'type': this.EXPR_TYPES.LITERAL,
-                'value': token,
-                'dataType': this.DATA_TYPES.DOUBLE
-            };
-        }
-
-        if (this.boolRegExp.test(token)) {
-            return {
-                'type': this.EXPR_TYPES.LITERAL,
-                'value': token,
-                'dataType': this.DATA_TYPES.BOOLEAN
-            };
-        }
-
-        return null;
-    },
-
-    /**
-     * Parses the given string into the object representing some value found in the order by clause.
-     *
-     * @param token String to parse.
-     * @return Object representing the order by value parsed or null if token does not reperesent
-     * a valid order by value.
-     */
-    parseOrderByValue: function (token) {
-        // TODO: support not only variables in ORDER BY.
-        var match, prefix;
-
-        if (!this.orderByValueRegExp) {
-            this.init();
-        }
-
-        match = token.match(this.orderByValueRegExp);
-
-        if (match) {
-            prefix = match[1];
-
-            if (!prefix) {
-                return {
-                    'type': this.EXPR_TYPES.VAR,
-                    'value': match[0].substring(1), // remove the ? or $ in the variable
-                    'order': 'ASC'
-                };
-            }
-
-            return {
-                'type': this.EXPR_TYPES.VAR,
-                'value': match[2].substring(1), // remove the ? or $ in the variable
-                'order': match[1].toUpperCase()
-            };
-        }
-
-        return null;
-    },
-
-    /**
-     * Parses the given string into the IRI, assuming that it is a prefixed name.
-     *
-     * @param token String containing prefixed name.
-     * @param query Query object with defined prefixes, which can be used for name expansion.
-     * @return Object representing the prefixed name parsed or null if the token is not a prefixed
-     * name.
-     */
-    parsePrefixedName: function (token, query) {
-        var match;
-
-        if (!this.prefixedNameRegExp) {
-            this.init();
-        }
-        
-        match = token.match(this.prefixedNameRegExp);
-
-        if (!match) {
-            return null;
-        }
-
-        return {
-            'type': this.EXPR_TYPES.IRI_REF,
-            'value': this.expandPrefixedName(match[1], match[2], query)
-        };
-    },
-
-    /**
-     * Parses the given string into the string representing the prefix name.
-     *
-     * @param token String containing the prefix name.
-     * @return Prefix name parsed or null if the given string does not contain a prefix name.
-     */
-    parsePrefixName: function (token) {
-        if (!this.prefixRegExp) {
-            this.init();
-        }
-
-        return (this.prefixRegExp.test(token)) ? token.substring(0, token.length - 1) : null;
-    },
-
-    /**
-     * Returns a SPARQL variable or term represented by the given string.
-     *
-     * @param token String to parse into the variable or term.
-     * @param query Reference to the query for which the variable or term is parsed.
-     * @return Object representing the variable or a term parsed.
-     */
-    parseVarOrTerm: function (token, query) {
-        // See if it is a variable.
-        var value = this.parseVar(token);
-        
-        if (value) {
-            return value;
-        }
-
-        // See if it is an IRI reference.
-        value = this.parseIriRef(token, query.baseIri);
-
-        if (value) {
-            return value;
-        }
-
-        // See if it is a prefixed name.
-        value = this.parsePrefixedName(token, query);
-
-        if (value) {
-            return value;
-        }
-
-        // See if it is a literal.
-        value = this.parseLiteral(token, query);
-        
-        if (value) {
-            return value;
-        }
-
-        return null;
-    },
-
-    /**
-     * Parses a token into the variable.
-
-     *
-     * @param token Contains the text representing SPARQL variable.
-     * @return Object representing the SPARQL variable, or null if the given token does not
-     * represent a valid SPARQL variable.
-     */
-    parseVar: function (token) {
-        if (this.varRegExp === null) {
-            this.init();
-        }        
-        
-        if (!this.varRegExp.test(token)) {
-            return null;
-        }
-
-        return {
-            'type': this.EXPR_TYPES.VAR,
-            'value': token.substring(1) // Skip the initial '?' or '$'
-        };
-    },
-
-    /**
-     * Parses a token into the SPARQL verb.
-     *
-     * @param token String containing a SPARQL verb.
-     * @param query Reference to the query for which the variable or term is parsed.
-     * @return Object representing the SPARQL verb, or null if the given token does not represent a
-     * valid SPARQL verb.
-     */
-    parseVerb: function (token, query) {
-        // See if it is a variable.
-        var value = this.parseVar(token);
-        
-        if (value) {
-            return value;
-        }
-
-        // See if it is an IRI reference.
-        value = this.parseIriRef(token, query.baseIri);
-
-        if (value) {
-            return value;
-        }
-
-        // See if it is a prefixed name.
-        value = this.parsePrefixedName(token, query);
-
-        if (value) {
-            return value;
-        }
-
-        if (token === 'a') {
-            return {
-                'type': this.EXPR_TYPES.IRI_REF,
-                'value':  jsw.rdf.IRIS.TYPE
-            };
-        }
-
-        return null;
-    }
+    }  
 };
 
 /** Allows to work with SQL representation of queries against RDF data. */
-jsw.TrimQueryStorage = function () {
+jsw.owl.TrimQueryABox = function () {
     /** The object storing ABox data. */
     this.database = {
         ClassAssertion: [],
@@ -1736,8 +1761,8 @@ jsw.TrimQueryStorage = function () {
     this.queryLang = this.createQueryLang();
 };
 
-/** Prototype for all jsw.TrimQueryStorage objects. */
-jsw.TrimQueryStorage.prototype = {
+/** Prototype for all jsw.TrimQueryABox objects. */
+jsw.owl.TrimQueryABox.prototype = {
     /**
      * Answers the given RDF query.
      *
@@ -1812,9 +1837,9 @@ jsw.TrimQueryStorage.prototype = {
 
         from = '';
         where = '';
-        rdfTypeIri = jsw.rdf.IRIS.TYPE;
+        rdfTypeIri = jsw.rdf.IRIs.TYPE;
 
-        exprTypes = jsw.rdf.Query.prototype.EXPR_TYPES;
+        exprTypes = query.ExpressionTypes;
         varFields = {};
 
         /** Appends a condition to the where clause based on the given expression.
@@ -1964,14 +1989,14 @@ jsw.TrimQueryStorage.prototype = {
 };
 
 /**
- * An object representing an OWL-EL reasoner. Currently, it has some limitations and does not allow
+ * BrandT is an OWL-EL reasoner. Currently, it has some limitations and does not allow
  * reasoning on full EL++, but it does cover EL+ and its minor extensions.
  */
-jsw.owl.Reasoner = function (ontology) {  
+jsw.owl.BrandT = function (ontology) {  
     var clock, exprTypes, normalizedOntology, owlIris;
    
-    owlIris = jsw.owl.IRIS;
-    exprTypes = jsw.owl.EXPRESSION_TYPES;   
+    owlIris = jsw.owl.IRIs;
+    exprTypes = jsw.owl.ExpressionTypes;   
     
     /** Stores information about how much time different steps of building a reasoner took. */
     this.timeInfo = {};
@@ -2023,8 +2048,8 @@ jsw.owl.Reasoner = function (ontology) {
     this.timeInfo.objectPropertyHierarchy = clock.stop();
 };
 
-/** Prototype for all jsw.owl.Reasoner objects. */
-jsw.owl.Reasoner.prototype = {
+/** Prototype for all BrandT objects. */
+jsw.owl.BrandT.prototype = {
     /**
      * Builds an object property subsumption relation implied by the ontology.
      * 
@@ -2037,7 +2062,7 @@ jsw.owl.Reasoner.prototype = {
             objectPropertySubsumers, opropType, reqAxiomType, queue, subsumer, subsumers,
             topObjectProperty;
       
-        topObjectProperty = jsw.owl.IRIS.TOP_OBJECT_PROPERTY;
+        topObjectProperty = jsw.owl.IRIs.TOP_OBJECT_PROPERTY;
         objectPropertySubsumers = new jsw.util.PairStorage();
         
         objectPropertySubsumers.add(topObjectProperty, topObjectProperty);
@@ -2055,7 +2080,7 @@ jsw.owl.Reasoner.prototype = {
       
         axioms = ontology.axioms;
 
-        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        exprTypes = jsw.owl.ExpressionTypes;
         opropType = exprTypes.ET_OPROP;
         reqAxiomType = exprTypes.AXIOM_OPROP_SUB;
 
@@ -2106,7 +2131,6 @@ jsw.owl.Reasoner.prototype = {
         return objectPropertySubsumers;
     },
 
-   
     /**
      * Builds a class subsumption relation implied by the ontology.
      * 
@@ -2125,11 +2149,11 @@ jsw.owl.Reasoner.prototype = {
             classSubsumers = new jsw.util.PairStorage(),
             // Stores labels for each edge.
             edgeLabels = new jsw.util.TripletStorage(),
-            exprTypes = jsw.owl.EXPRESSION_TYPES, // Cash the constants.
+            exprTypes = jsw.owl.ExpressionTypes, // Cash the constants.
             instruction,
             leftChainSubsumers = chainSubsumers.left,
             node,
-            nothing = jsw.owl.IRIS.NOTHING,
+            nothing = jsw.owl.IRIs.NOTHING,
             objectPropertySubsumers = this.objectPropertySubsumers,
             originalOntology = this.originalOntology,
             queue,
@@ -2364,7 +2388,7 @@ jsw.owl.Reasoner.prototype = {
         function initialise() {
             var classes = ontology.getClasses(),
                 classIri,
-                thing = jsw.owl.IRIS.THING;
+                thing = jsw.owl.IRIs.THING;
             
             // Create a node for Thing (superclass).
             initialiseNode(thing);
@@ -2389,9 +2413,9 @@ jsw.owl.Reasoner.prototype = {
         function addRemainingSubsumerSets() {
             var classes = ontology.getClasses(),
                 classIri,
-                nothing = jsw.owl.IRIS.NOTHING,
+                nothing = jsw.owl.IRIs.NOTHING,
                 originalClasses = originalOntology.getClasses(),
-                thing = jsw.owl.IRIS.THING;
+                thing = jsw.owl.IRIs.THING;
            
             // We add Nothing to the subsumer sets only if some of the original classes has Nothing
             // as a subsumer.
@@ -2635,7 +2659,7 @@ jsw.owl.Reasoner.prototype = {
         leftSubsumers = new jsw.util.TripletStorage();
         rightSubsumers = new jsw.util.TripletStorage();
 
-        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        exprTypes = jsw.owl.ExpressionTypes;
         reqAxiomType = exprTypes.AXIOM_OPROP_SUB;
         opropChainType = exprTypes.OPE_CHAIN;
 
@@ -2674,7 +2698,7 @@ jsw.owl.Reasoner.prototype = {
         axioms = this.originalOntology.axioms;
         storage = new jsw.util.PairStorage();
 
-        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        exprTypes = jsw.owl.ExpressionTypes;
         axiomType = exprTypes.AXIOM_OPROP_SUB;
         opropType = exprTypes.ET_OPROP;
 
@@ -2705,7 +2729,7 @@ jsw.owl.Reasoner.prototype = {
 
         axioms = this.originalOntology.axioms;
         storage = new jsw.util.PairStorage();
-        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        exprTypes = jsw.owl.ExpressionTypes;
         axiomEqType = exprTypes.AXIOM_CLASS_EQ;
         axiomSubType = exprTypes.AXIOM_CLASS_SUB;
         classType = exprTypes.ET_CLASS;
@@ -2755,8 +2779,8 @@ jsw.owl.Reasoner.prototype = {
         var axioms = ontology.axioms,
             axiomCount = axioms.length,
             classSubsumers = this.classSubsumers,
-            database = new jsw.TrimQueryStorage(),
-            exprTypes = jsw.owl.EXPRESSION_TYPES,
+            aBox = new jsw.owl.TrimQueryABox(),
+            exprTypes = jsw.owl.ExpressionTypes,
             objectPropertySubsumers = this.objectPropertySubsumers,
             originalOntology = this.originalOntology;
       
@@ -2792,7 +2816,7 @@ jsw.owl.Reasoner.prototype = {
             // Put class assertions into the database.
             for (individualIri in individualClasses.get()) {
                 for (classIri in individualClasses.get(individualIri)) {
-                    database.addClassAssertion(individualIri, classIri);
+                    aBox.addClassAssertion(individualIri, classIri);
                 }
             }
         }
@@ -2867,7 +2891,7 @@ jsw.owl.Reasoner.prototype = {
             
                 for (leftInd in storage.get(oprop)) {
                     for (rightInd in storage.get(oprop, leftInd)) {
-                        database.addObjectPropertyAssertion(oprop, leftInd, rightInd);
+                        aBox.addObjectPropertyAssertion(oprop, leftInd, rightInd);
                     }
                 }
             }
@@ -2876,7 +2900,7 @@ jsw.owl.Reasoner.prototype = {
         rewriteClassAssertions();
         rewriteObjectPropertyAssertions();        
 
-        return database;
+        return aBox;
     },
    
     /**
@@ -2891,6 +2915,15 @@ jsw.owl.Reasoner.prototype = {
         }
 
         return this.aBox.answerQuery(query);
+    },
+    
+    /**
+     * Checks whether the class with the given IRI is satisfiable.
+     * 
+     * @param classIri IRI of the class to check.
+     */
+    isClassSatisfiable: function (classIri) {
+        return !this.classSubsumers.exists(classIri, jsw.owl.IRIs.NOTHING);
     },
     
     /**
@@ -3017,12 +3050,12 @@ jsw.owl.Reasoner.prototype = {
         }
 
         axioms = ontology.axioms;
-        exprTypes = jsw.owl.EXPRESSION_TYPES;
+        exprTypes = jsw.owl.ExpressionTypes;
         resultOntology = new jsw.owl.Ontology();
         instanceClasses = {};
         nothingClass = {
             'type': exprTypes.ET_CLASS,
-            'IRI': jsw.owl.IRIS.NOTHING
+            'IRI': jsw.owl.IRIs.NOTHING
         };
 
         rules = [
@@ -3425,7 +3458,7 @@ jsw.owl.Reasoner.prototype = {
                 
                 firstArg = statement.args[0];
                 
-                if (firstArg.type === exprTypes.ET_CLASS && firstArg.IRI === jsw.owl.IRIS.NOTHING) {
+                if (firstArg.type === exprTypes.ET_CLASS && firstArg.IRI === jsw.owl.IRIs.NOTHING) {
                     return [];
                 }
                 
@@ -3549,7 +3582,7 @@ jsw.owl.Reasoner.prototype = {
 
 /** Onotlogy represents a set of statements about some domain of interest. */
 jsw.owl.Ontology = function () {	
-    var exprTypes = jsw.owl.EXPRESSION_TYPES,
+    var exprTypes = jsw.owl.ExpressionTypes,
         classType = exprTypes.ET_CLASS,
         individualType = exprTypes.ET_INDIVIDUAL,
         opropType = exprTypes.ET_OPROP;
@@ -3589,7 +3622,7 @@ jsw.owl.Ontology = function () {
 
 jsw.owl.Ontology.prototype = {
     /** Types of expressions which the ontology can contain. */
-    exprTypes: jsw.owl.EXPRESSION_TYPES,
+    exprTypes: jsw.owl.ExpressionTypes,
 
     /**
      * Adds the given prefix to the ontology, so that the abbreviated IRIs of entities with this
@@ -3641,7 +3674,7 @@ jsw.owl.Ontology.prototype = {
      * not used in axioms yet. False by default.
      */
     registerEntity: function (type, iri, isDeclared) {
-        var iris = jsw.owl.IRIS;
+        var iris = jsw.owl.IRIs;
         
         // We don't want to regiter default entity IRIs.
         if (type === this.exprTypes.ET_CLASS && 
@@ -3669,7 +3702,7 @@ jsw.owl.Ontology.prototype = {
      * @return True if the ontology has reverences to the class, false otherwise.
      */
     containsClass: function (iri) {
-        if (iri === jsw.owl.IRIS.THING || iri === jsw.owl.IRIS.NOTHING ||
+        if (iri === jsw.owl.IRIs.THING || iri === jsw.owl.IRIs.NOTHING ||
                 this.entities[this.exprTypes.ET_CLASS].hasOwnProperty(iri)) {
             return true;
         } else {
@@ -3685,8 +3718,8 @@ jsw.owl.Ontology.prototype = {
      * @return True if the ontology has reverences to the object property, false otherwise.
      */
     containsObjectProperty: function (iri) {
-        if (iri === jsw.owl.IRIS.TOP_OBJECT_PROPERTY || 
-                iri === jsw.owl.IRIS.BOTTOM_OBJECT_PROPERTY ||
+        if (iri === jsw.owl.IRIs.TOP_OBJECT_PROPERTY || 
+                iri === jsw.owl.IRIs.BOTTOM_OBJECT_PROPERTY ||
                 this.entities[this.exprTypes.ET_OPROP].hasOwnProperty(iri)) {
             return true;
         } else {
@@ -3808,7 +3841,7 @@ jsw.owl.Ontology.prototype = {
      * 
      * @return Size of the ABox of the ontology.
      */
-    getAboxSize: function () {
+    getABoxSize: function () {
         var exprTypes = this.exprTypes;
         return this.getSize([exprTypes.FACT_CLASS, exprTypes.FACT_OPROP]);
     },
@@ -3818,7 +3851,7 @@ jsw.owl.Ontology.prototype = {
      * 
      * @return Size of the TBox of the ontology.
      */
-    getTboxSize: function () {
+    getTBoxSize: function () {
         var et = this.exprTypes;
         
         return this.getSize([et.AXIOM_CLASS_EQ, et.AXIOM_CLASS_SUB, et.AXIOM_CLASS_DISJOINT,
@@ -3830,7 +3863,7 @@ jsw.owl.Ontology.prototype = {
      * 
      * @return Size of the RBox of the ontology.
      */   
-    getRboxSize: function () {
+    getRBoxSize: function () {
         var et = this.exprTypes;
         
         return this.getSize([et.AXIOM_OPROP_SUB, et.AXIOM_OPROP_EQ, et.AXIOM_OPROP_REFL,
@@ -3854,6 +3887,33 @@ jsw.owl.Ontology.prototype = {
     }
 };
 
+// ================================ UTIL namespace ============================
+
+jsw.util = {};
+
+/** Contains helper methods for working with strings. */
+jsw.util.string = {
+    /**
+     * Checks if the given string is a valid URL.
+     * @param str String to check.
+     * @return True if the given string is a URL, false otherwise.
+     */
+    isUrl: function (str) {
+        var regexp = /^(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?$/;
+        return regexp.test(str);
+    },
+    
+    /**
+     * Removes space characters at the start and end of the given string. 
+     * 
+     * @param str String to trim.
+     * @return New string with space characters removed from the start and the end. 
+     */
+    trim: function (str) {
+        return str.replace(/^\s*/, '').replace(/\s*$/, '');
+    }
+};
+
 /** An object containing utility methods for working with XML. */
 jsw.util.xml = {
     /**
@@ -3865,7 +3925,7 @@ jsw.util.xml = {
     parseString: function (xml) {
         var xmlDoc, error;
 
-        xml = xml.replace(/^\s*/, '').replace(/\s*$/, '');
+        xml = jsw.util.string.trim(xml);
 
         if (window.DOMParser) {
             xmlDoc = new DOMParser().parseFromString(xml, 'text/xml');
@@ -4456,4 +4516,47 @@ jsw.util.TripletStorage.prototype = {
             
         return true;
     }
+};
+
+/**
+ * TextFile objects allow loading the text content of the file specified by the url.
+ * 
+ * @param url URL of the text file.
+ */
+jsw.util.TextFile = function (url) {
+    var newUrl = jsw.util.string.trim(url);
+    
+    if (!jsw.util.string.trim(newUrl)) {
+        throw '"' + url + '" is not a valid url for a text file!';
+    }
+   
+    /** URL of the file. */
+    this.url = newUrl;
+}
+
+/** Prototype for all TextFile objects. */
+jsw.util.TextFile.prototype = {
+    /**
+     * Returns the content of the file as text.
+     * 
+     * @returns Content of the file as text.
+     */
+    getText: function () {
+        var newUrl = jsw.util.string.trim(this.url),
+            xhr;
+    
+        if (!jsw.util.string.trim(newUrl)) {
+            throw '"' + this.url + '" is not a valid url for a text file!';
+        }
+      
+        xhr = new XMLHttpRequest();
+         
+        try {
+            xhr.open('GET', this.url, false);
+            xhr.send(null);
+            return xhr.responseText;
+        } catch (ex) {
+            throw ex;
+        }
+    } 
 };

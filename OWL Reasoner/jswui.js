@@ -1,42 +1,19 @@
 /**
- * Represents an arbitrary text file.
+ * The file defines the UI components which can be used in conjunction with the logic layer of the
+ * JSW Toolkit.
  * 
- * @param url URL of the file.
+ * Copyright <c> The University of Mancehster, 2010 - 2011.
+ * @author Vit Stepanovs <vitaly.stepanov@gmail.com> 
  */
-function TextFile(url) {
-    if (!url) {
-        throw 'URL of the file is not specified!';
-    }
-   
-    /** URL of the file. */
-    this.url = url;
+
+/** Namespace for all library objects. */
+var jsw;
+
+if (!jsw) {
+    jsw = {};
 }
 
-/** Prototype for all TextFile objects. */
-TextFile.prototype = {
-    /**
-     * Returns the content of the file as text.
-     * 
-     * @returns Content of the file as text.
-     */
-    getText: function () {
-        var xhr;
-
-        if (!this.url) {
-            throw 'URL of the file is not specified!';
-        }
-      
-	    xhr = new XMLHttpRequest();
-         
-        try {
-            xhr.open('GET', this.url, false);
-            xhr.send(null);
-            return xhr.responseText;
-        } catch (ex) {
-            throw ex;
-        }
-    } 
-};
+jsw.ui = {};
 
 /**
  * TableControl component allows to display data stored in the given array in a tabular form.
@@ -48,7 +25,7 @@ TextFile.prototype = {
  * @param tableClass (optional) Name of the CSS class to use for the table generated.
  * @param noDataMsg (optional) Message to be displayed if the data set is empty.
  */
-function TableControl(dataSet, hostId, tableClass, noDataMsg) {
+jsw.ui.TableControl = function (dataSet, hostId, tableClass, noDataMsg) {
     var host, html, rowCount;
     
     host = document.getElementById(hostId);
@@ -110,7 +87,7 @@ function TableControl(dataSet, hostId, tableClass, noDataMsg) {
  * @param classNames An object defining the CSS names for active/inactive, enabled/disabled tab
  * items.
  */
-function TabControl(tabs, classNames) {
+jsw.ui.TabControl = function (tabs, classNames) {
     var firstEnabled, tab, tabCount, tabIndex;
 
     /** Collection of objects representing each tab. */
@@ -148,7 +125,7 @@ function TabControl(tabs, classNames) {
 }
 
 /** Prototype for all TabControl objects. */
-TabControl.prototype = {
+jsw.ui.TabControl.prototype = {
     /**
      * Returns an object representing the tab with the given id in the tabs collection.
      *
@@ -296,7 +273,7 @@ TabControl.prototype = {
  *                            during search.
  *      - specialClass:       Name of the CSS class to use for displaying 'special' nodes.
  */
-function TreeControl(hierarchy, hostId, options) {
+jsw.ui.TreeControl = function (hierarchy, hostId, options) {
     var children, childrenCountClass, childrenElement, childCount, childIndex, element, elements,
         elementTitle, item, items, itemElement, names, nameCount, nameIndex, rootElement,
         specialClass, titleClass, titleElement;
@@ -390,7 +367,7 @@ function TreeControl(hierarchy, hostId, options) {
 }
 
 /** Prototype for all TreeControl objects. */
-TreeControl.prototype = {
+jsw.ui.TreeControl.prototype = {
     /**
      * Assigns an onClick handler to the HTML element representing an item in the hierarchy.
      * 
