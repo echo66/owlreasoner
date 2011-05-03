@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<Ontology xmlns="http://www.w3.org/2002/07/owl#"
+     xml:base="http://www.w3.org/2002/07/owl#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace">
+    <Prefix name="ex" IRI="http://example.org/"/>
+    <Declaration>
+        <ObjectProperty abbreviatedIRI="ex:p"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty abbreviatedIRI="ex:q"/>
+    </Declaration>
+    <ObjectPropertyAssertion>
+        <ObjectProperty abbreviatedIRI="ex:q"/>
+        <NamedIndividual abbreviatedIRI="ex:a"/>
+        <NamedIndividual abbreviatedIRI="ex:b"/>
+    </ObjectPropertyAssertion>
+    <ObjectPropertyAssertion>
+        <ObjectProperty abbreviatedIRI="ex:q"/>
+        <NamedIndividual abbreviatedIRI="ex:b"/>
+        <NamedIndividual abbreviatedIRI="ex:c"/>
+    </ObjectPropertyAssertion>
+    <SubObjectPropertyOf>
+        <ObjectPropertyChain>
+            <ObjectProperty abbreviatedIRI="ex:p"/>
+            <ObjectProperty abbreviatedIRI="ex:q"/>
+        </ObjectPropertyChain>
+        <ObjectProperty abbreviatedIRI="ex:p"/>
+    </SubObjectPropertyOf>
+</Ontology>

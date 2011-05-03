@@ -363,6 +363,7 @@ jsw.ui.TreeControl = function (hierarchy, hostId, options) {
     }
 
     this.showFirstLevel(rootElement);
+    
     document.getElementById(hostId).appendChild(rootElement);
 }
 

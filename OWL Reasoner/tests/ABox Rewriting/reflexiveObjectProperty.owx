@@ -1,0 +1,12 @@
+<!-- The rewritten ABox has to contain R(a, a), R(b, b), Top(a, a), Top(b, b) -->
+<Ontology>
+   <Declaration>
+       <NamedIndividual IRI="a" />
+   </Declaration>
+   <Declaration>
+       <NamedIndividual IRI="b" />
+   </Declaration>
+   <ReflexiveObjectProperty>
+       <ObjectProperty IRI="R" />
+   </ReflexiveObjectProperty>
+</Ontology>

@@ -27,6 +27,8 @@
 	                <a href="tests/subsumption/test2.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test2.owx');">Test #2</a> |
 	                <a href="tests/subsumption/test3.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test3.owx');">Test #3</a> |
 	                <a href="tests/subsumption/test4.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/test4.owx');">Test #4</a> |
+                    <a href="tests/subsumption/worm_phenotype.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/worm_phenotype.owx');">WORM</a> |                    
+                    <a href="tests/subsumption/endocarditis.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/endocarditis.owx');">ENDOCARDITIS</a> |
 	                <a href="tests/subsumption/LAT.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/LAT.owx');">LAT</a> |
                     <a href="tests/subsumption/NOT-GALEN.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/NOT-GALEN.owx');">NOT-GALEN</a> |
 	                <a href="tests/subsumption/GO.owx" target="_blank" onclick="return showOntologyFile('tests/subsumption/GO.owx');">GO</a>
@@ -50,8 +52,7 @@
             
                 TBox size: <span id="tboxSize">[not processed yet]</span><br />
                 ABox size: <span id="aboxSize">[not processed yet]</span><br />
-                RBox size: <span id="rboxSize">[not processed yet]</span><br />
-	            Total axioms: <span id="axiomCount">[not processed yet]</span><br />
+	            Total size: <span id="axiomCount">[not processed yet]</span><br />
             </div>
             <div id="classesBox" class="tabBox">
                 Search: <input type="text" id="classSearch" placeholder="Start typing here." onkeyup="classTree.showMatches(this.value);"/><br /><br />
@@ -134,7 +135,6 @@
             
                 document.getElementById('tboxSize').innerHTML = ontology.getTBoxSize();
                 document.getElementById('aboxSize').innerHTML = ontology.getABoxSize();
-                document.getElementById('rboxSize').innerHTML = ontology.getRBoxSize();
                 document.getElementById('axiomCount').innerHTML = ontology.getSize();               
                 tabControl.setEnabled('statsTab', true);
             }
@@ -179,11 +179,11 @@
             }
         
             /** Parses the ontology from the given OWL/XML and builds a reasoner object for it. */ 
-            function classifyBtnClicked() {
+            function classifyBtnClicked(value) {
                 var clock, classificationTime, ontology, text, totalClock, totalTime;
 
                 try {
-                    text = document.getElementById('ontologyText').value;
+                    text = (value) ? value : document.getElementById('ontologyText').value;
               
                     totalClock = new jsw.util.Stopwatch();
                     clock = new jsw.util.Stopwatch();
@@ -196,7 +196,7 @@
                     } else {
                         ontology = jsw.owl.xml.parse(text, handleError);
                     }
-                    
+                                        
                     parsingTime = clock.stop();
 
                     clock.start();
@@ -261,7 +261,8 @@
                         return true;
                     }
                
-                    document.getElementById('ontologyText').value = new jsw.util.TextFile(url).getText();
+                    //document.getElementById('ontologyText').value = new jsw.util.TextFile(url).getText();
+                    classifyBtnClicked(new jsw.util.TextFile(url).getText());
                     return false;
                 } catch (ex) {
                     // Returns false, so that the file can be opened in a new window.
